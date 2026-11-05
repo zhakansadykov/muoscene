@@ -1,0 +1,18 @@
+{
+  "title": "muoscene: muography scene for planning and checking absorption muography of engineering-scale objects",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Sadykov, Zhakypbek",
+      "orcid": "0000-0001-7527-8945",
+      "affiliation": "Institute of Nuclear Physics, Almaty, Kazakhstan"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "keywords": [
+    "muography",
+    "cosmic-ray muons",
+    "nuclear emulsion",
+    "geotechnics"
+  ]
+}

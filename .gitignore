@@ -1,0 +1,21 @@
+# runs and caches
+runs/
+.cache/
+# site data never enters the repository
+private/
+*.private.*
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+# docs build
+site/
+# OS and editors
+.DS_Store
+.vscode/
+.idea/

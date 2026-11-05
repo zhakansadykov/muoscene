@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "muoscene: muography scene for planning and checking absorption muography of engineering-scale objects"
+type: software
+license: BSD-3-Clause
+repository-code: "https://github.com/zhakansadykov/muoscene"
+keywords:
+  - muography
+  - cosmic-ray muons
+  - nuclear emulsion
+  - geotechnics
+authors:
+  - family-names: Sadykov
+    given-names: Zhakypbek
+    orcid: "https://orcid.org/0000-0001-7527-8945"
+    affiliation: "Institute of Nuclear Physics, Almaty, Kazakhstan"
