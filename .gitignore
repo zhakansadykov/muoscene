@@ -14,7 +14,7 @@ dist/
 .pytest_cache/
 .ruff_cache/
 # docs build
-site/
+/site/
 # OS and editors
 .DS_Store
 .vscode/
