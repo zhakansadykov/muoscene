@@ -3,4 +3,5 @@ theme:
   name: material
 nav:
   - Home: index.md
+  - Conventions: conventions.md
   - Roadmap: roadmap.md
