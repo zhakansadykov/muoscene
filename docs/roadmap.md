@@ -25,7 +25,7 @@ Goal: `muoscene plan examples/canyon_demo/run.yaml` reproduces the preliminary s
 - [ ] **0.1-08 Forward model.** Grid → rays → trace → hypotheses applied to stored paths → threshold → flux → counts; `ExpectedMap`. *Done when:* open sky matches the analytic integral; uniform slab transmission; hypotheses without retracing equal retracing a modified scene.
 - [ ] **0.1-09 Significance and exposure.** Legacy cone estimator; binned χ² and Asimov likelihood-ratio significance; days to kσ; track density versus days against the scanning limit; Markdown table in the layout of the preliminary calculation. *Done when:* legacy parity within 2 %; unit tests of the formulas.
 - [ ] **0.1-10 Examples.** `examples/canyon_demo` (generator: canyon depth and widths, two banks with different brows, two niche levels, a pier on each bank with a pile cap and 3 × 3 piles, two horizontal layers) with `site.yaml`, `detectors.yaml`, `run.yaml`; `examples/open_sky`, `examples/slab`. *Done when:* the parameters are documented and differ from any real site.
-- [ ] **0.1-11 Configuration, CLI, provenance.** pydantic schema for every 0.1 object (`extra="forbid"`, units in field names); loader with `include` and relative paths; `from_config` builders; `muoscene check` and `muoscene plan`; run folder with resolved configuration, input hashes, version, git commit, NetCDF and Markdown report. *Done when:* examples run from the command line; broken configurations give readable errors.
+- [ ] **0.1-11 Configuration, CLI, provenance.** pydantic schema for every 0.1 object (`extra="forbid"`, units in field names); loader with `include` and relative paths; `from_config` builders; orchestration in `muoscene.pipeline`; `muoscene check` and `muoscene plan`; run folder with resolved configuration, input hashes, version, git commit, NetCDF and Markdown report. *Done when:* examples run from the command line; broken configurations give readable errors.
 - [ ] **0.1-12 Visualisation I.** Angular maps (counts, opacity, transmission, significance per hypothesis) in one style; PyVista scene (canyon, niches, pile caps, piles, anomalies, detectors with view cones coloured by significance) exported to HTML. *Done when:* the HTML opens in a browser and the scene matches the configuration.
 - [ ] **0.1-13 Release 0.1.0.** README quickstart, `docs/legacy.md`, CHANGELOG, roadmap; CI green; tag `v0.1.0` (no Zenodo, no PyPI yet).
 
@@ -41,7 +41,7 @@ Range tables by default; altitude correction; seasonal correction with optional 
 
 ## 0.4 — data
 
-Synthetic tracks in the scanning output format; readers for scanning text output and FEDRA ROOT; binning with the same grid and cuts; data/model ratio, pulls, χ², region fits with nuisance parameters; straw telescope (level-1 response) and generic two-plane telescope; first comparison with an archival emulsion exposure.
+`TrackSet` in `detectors.tracks`; synthetic tracks in the scanning output format; readers for scanning text output and FEDRA ROOT; binning with the same grid and cuts; data/model ratio, pulls, χ², region fits with nuisance parameters; straw telescope (level-1 response) and generic two-plane telescope; first comparison with an archival emulsion exposure.
 
 ## 1.0 — release and paper
 

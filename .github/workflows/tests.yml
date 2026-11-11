@@ -2,18 +2,31 @@ name: tests
 on:
   push:
   pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   tests:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.12", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]"
       - run: ruff check .
+      - run: ruff format --check .
+      - run: python scripts/make_zenodo_json.py --check
+      - name: No site data among tracked files
+        shell: bash
+        run: git ls-files -z | xargs -0 python scripts/check_private.py
       - run: pytest

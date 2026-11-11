@@ -1,15 +1,17 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.17.4 # keep equal to the ruff version pinned in pyproject.toml
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         args: [--maxkb=500]
+      - id: check-merge-conflict
+      - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -18,5 +20,11 @@ repos:
       - id: check-private
         name: refuse site data
         entry: python scripts/check_private.py
-        language: system
-        pass_filenames: true
+        language: python
+      - id: zenodo-json
+        name: .zenodo.json follows CITATION.cff
+        entry: python scripts/make_zenodo_json.py --check
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        files: ^(CITATION\.cff|\.zenodo\.json)$

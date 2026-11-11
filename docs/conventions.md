@@ -1,6 +1,6 @@
 # Conventions
 
-Status: draft for version 0.1. Every module follows these rules; a change here is a breaking change and is recorded in `CHANGELOG.md`.
+Status: draft for version 0.1, to be finalised after the Mulder and Calzone spike (roadmap task 0.1-02): the energy variable (total or kinetic) and the density unit may change. Every module follows these rules; a change here is a breaking change and is recorded in `CHANGELOG.md`.
 
 ## Frames
 
@@ -89,6 +89,10 @@ Overlapping bodies are resolved by priority: cuts (niches, excavations) 100, str
 | `zenith_deg`, `azimuth_deg` | detector, ty, tx | bin centre in ENU |
 
 Attributes carry the package version, configuration hash, creation time and exposure.
+
+## Tracks
+
+`TrackSet` (`muoscene.detectors.tracks`) holds measured and synthetic tracks in one layout: slopes `tx`, `ty` and position in the detector frame, film index, quality, and the source (data or synthetic). It lives with the detectors, not with file readers, because synthetic data and comparison with data use it without touching files; readers in `muoscene.io.tracks` convert scanning output into it and apply the scan-frame transform. Model and data are binned in the same `DirectionGrid` with the same cuts.
 
 ## Randomness
 

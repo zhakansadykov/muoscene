@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -13,9 +13,15 @@ requires-python = ">=3.12"
 authors = [{ name = "Zhakypbek Sadykov" }]
 keywords = ["muography", "cosmic-ray muons", "nuclear emulsion", "geotechnics", "simulation"]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Topic :: Scientific/Engineering :: Physics",
+    "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.26",
@@ -37,7 +43,13 @@ data = ["uproot>=5", "awkward>=2"]
 mc = ["mulder"]
 mceq = ["MCEq"]
 docs = ["mkdocs-material>=9", "mkdocstrings[python]>=0.24"]
-dev = ["pytest>=8", "ruff>=0.5", "pre-commit>=3"]
+# ruff is pinned: the same version runs in pre-commit (.pre-commit-config.yaml) and in CI
+dev = ["pytest>=8", "ruff==0.17.4", "pre-commit>=4"]
+
+[project.urls]
+Repository = "https://github.com/zhakansadykov/muoscene"
+Issues = "https://github.com/zhakansadykov/muoscene/issues"
+Changelog = "https://github.com/zhakansadykov/muoscene/blob/main/CHANGELOG.md"
 
 [project.scripts]
 muoscene = "muoscene.cli:main"
@@ -51,7 +63,8 @@ packages = ["src/muoscene"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["validation: slow comparisons against PUMAS/Mulder and MUTE (deselect with -m 'not validation')"]
-addopts = "-m 'not validation'"
+addopts = "-ra --strict-markers -m 'not validation'"
+xfail_strict = true
 
 [tool.ruff]
 line-length = 110

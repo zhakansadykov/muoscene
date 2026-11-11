@@ -21,5 +21,6 @@ LAYERS = {
     "viz": 5,
     "report": 5,
     "provenance": 5,
+    "pipeline": 5,
     "cli": 5,
 }

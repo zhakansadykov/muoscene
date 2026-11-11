@@ -1,29 +1,60 @@
-"""Build .zenodo.json from CITATION.cff. Authors live only in CITATION.cff; never edit .zenodo.json by hand.
+"""Build .zenodo.json from CITATION.cff.
 
-Usage: python scripts/make_zenodo_json.py
+Title, authors, licence and keywords live only in CITATION.cff; never edit .zenodo.json by hand.
+
+Usage:
+    python scripts/make_zenodo_json.py           write .zenodo.json
+    python scripts/make_zenodo_json.py --check   exit 1 if .zenodo.json is out of date
 """
 
 import json
 import pathlib
+import sys
 
 import yaml
 
-root = pathlib.Path(__file__).resolve().parents[1]
-cff = yaml.safe_load((root / "CITATION.cff").read_text(encoding="utf-8"))
-creators = []
-for a in cff["authors"]:
-    c = {"name": f"{a['family-names']}, {a['given-names']}"}
-    if "orcid" in a:
-        c["orcid"] = a["orcid"].rsplit("/", 1)[-1]
-    if "affiliation" in a:
-        c["affiliation"] = a["affiliation"]
-    creators.append(c)
-z = {
-    "title": cff["title"],
-    "upload_type": "software",
-    "creators": creators,
-    "license": cff["license"],
-    "keywords": cff.get("keywords", []),
-}
-(root / ".zenodo.json").write_text(json.dumps(z, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-print("written .zenodo.json with", len(creators), "creator(s)")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def build(cff: dict) -> dict:
+    """Zenodo metadata record for a parsed CITATION.cff."""
+    creators = []
+    for author in cff["authors"]:
+        creator = {"name": f"{author['family-names']}, {author['given-names']}"}
+        if "orcid" in author:
+            creator["orcid"] = author["orcid"].rsplit("/", 1)[-1]
+        if "affiliation" in author:
+            creator["affiliation"] = author["affiliation"]
+        creators.append(creator)
+    record = {
+        "title": cff["title"],
+        "upload_type": "software",
+        "creators": creators,
+        "license": cff["license"],
+        "keywords": list(cff.get("keywords", [])),
+    }
+    if "abstract" in cff:
+        record["description"] = cff["abstract"]
+    return record
+
+
+def render(record: dict) -> str:
+    return json.dumps(record, ensure_ascii=False, indent=2) + "\n"
+
+
+def main(argv: list[str]) -> int:
+    cff = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+    text = render(build(cff))
+    target = ROOT / ".zenodo.json"
+    if "--check" in argv:
+        if not target.exists() or target.read_text(encoding="utf-8") != text:
+            print(".zenodo.json is out of date: run python scripts/make_zenodo_json.py")
+            return 1
+        return 0
+    target.write_text(text, encoding="utf-8")
+    print(f"written .zenodo.json with {len(cff['authors'])} creator(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

@@ -1,5 +1,7 @@
 """Command-line interface: `muoscene check|import-survey|scene|plan|synth|compare|invert`.
 
+A thin wrapper: arguments are parsed here, the work is done by `muoscene.pipeline`.
+
 Layer 5.
 """
 
