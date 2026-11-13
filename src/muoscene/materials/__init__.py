@@ -1,7 +1,8 @@
 """Materials.
 
-Compositions (Z/A, mean excitation energy), mixtures, default densities; soil moisture to
-bulk density and composition; CSDA muon range tables (Groom et al. 2001) and E_min(X).
+Compositions by formula or mass fractions, mixtures, soil moisture to composition and bulk
+density; a library (soils, concrete, standard rock, water, air) registered with Mulder; the
+equivalent-opacity weight of each material relative to a reference one, from Mulder muon ranges.
 
 Layer 1: may import only `muoscene` modules of layer <= 1 (see `muoscene._layers`).
 """

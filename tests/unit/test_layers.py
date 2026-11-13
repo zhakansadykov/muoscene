@@ -21,9 +21,12 @@ OPTIONAL = {
     "pyvista",
     "uproot",
     "awkward",
-    "mulder",
-    "calzone",
     "MCEq",
+}
+# Backends are core dependencies, but only these modules may talk to them.
+BACKENDS = {
+    "calzone": {"geometry"},
+    "mulder": {"geometry", "materials", "flux", "transport", "site"},
 }
 # The computing core (layers 0-4) never draws.
 GRAPHICS = {"matplotlib", "pyvista", "vtk"}
@@ -130,6 +133,19 @@ def test_core_does_not_draw():
         _, anywhere = third_party_imports(tree)
         for name in sorted(anywhere & GRAPHICS):
             bad.append(f"{path.relative_to(SRC)}: {own} (layer {LAYERS[own]}) imports {name}")
+    assert not bad, "\n".join(bad)
+
+
+def test_backends_are_confined():
+    bad = []
+    for path, tree in sources():
+        own = top_module(path)
+        _, anywhere = third_party_imports(tree)
+        for name in sorted(anywhere & set(BACKENDS)):
+            if own not in BACKENDS[name]:
+                bad.append(
+                    f"{path.relative_to(SRC)}: {name} may be imported only in {sorted(BACKENDS[name])}"
+                )
     assert not bad, "\n".join(bad)
 
 

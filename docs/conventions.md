@@ -1,18 +1,35 @@
 # Conventions
 
-Status: draft for version 0.1, to be finalised after the Mulder and Calzone spike (roadmap task 0.1-02): the energy variable (total or kinetic) and the density unit may change. Every module follows these rules; a change here is a breaking change and is recorded in `CHANGELOG.md`.
+Status: revised after the Mulder and Calzone spike (`docs/notes/mulder.md`, 13 November 2026). Every module follows these rules; a change here is a breaking change and is recorded in `CHANGELOG.md`.
+
+## Backends and units
+
+Scenes are built with Calzone and scanned by Mulder; reference flux, atmosphere and energy loss come from Mulder. Only `geometry`, `materials`, `flux`, `transport` and `site` talk to them (`calzone` only `geometry`), and units are converted at that boundary.
+
+| Quantity | muoscene | Mulder | Calzone |
+|---|---|---|---|
+| length | m | m | cm |
+| density | g/cm³ | kg/m³ | — |
+| opacity X | g/cm² | kg/m² | — |
+| energy | GeV, kinetic | GeV, kinetic | — |
+| flux | m⁻² s⁻¹ sr⁻¹ (per GeV when differential) | the same | — |
+| detector area | cm² | — | — |
+| time | s; exposure by dates or in days | — | — |
+| angles | rad internally, degrees in configuration | degrees | degrees |
+
+X = ρ L × 100 for ρ in g/cm³ and L in m; 1 m w.e. = 100 g/cm². Configuration field names carry their unit: `length_m`, `area_cm2`, `tilt_deg`, `exposure_days`, `density_g_cm3`, `k_min_gev`.
 
 ## Frames
 
-**World frame — local ENU.** x points east, y north, z up; metres. The origin is the site origin given by latitude, longitude and altitude; z = 0 is that altitude above sea level. All computations run in this frame. Survey coordinate systems (UTM, a contractor's local grid, WGS84) are converted only in `muoscene.site`, at input and output.
+**World frame — local ENU.** x points east, y north, z up; metres. The origin is the site origin given by latitude, longitude and altitude; z = 0 is that altitude above sea level. It is the Mulder local frame of the scene. Survey coordinate systems (UTM, a contractor's local grid, WGS84) are converted only in `muoscene.site`, at input and output.
 
-**Directions.** A direction `u` is a unit vector pointing from the detector towards the sky, i.e. opposite to the muon momentum. Zenith angle θ = arccos(u_z). Azimuth φ is measured from true north, clockwise (towards east):
+**Directions.** A direction `u` is a unit vector pointing from the detector towards the sky, i.e. opposite to the muon momentum (the observation direction of Mulder). Zenith angle θ = arccos(u_z); elevation is 90° − θ. Azimuth φ is measured from true north, clockwise (towards east):
 
     u = (sin θ sin φ, sin θ cos φ, cos θ)
 
 Only directions with u_z > 0 carry muons; upward-going particles are ignored.
 
-**North.** Azimuths in configuration and output are relative to true north. Grid north (UTM meridian convergence) and magnetic north (declination for the date) are converted in `muoscene.site`; a value given relative to them must say so explicitly.
+**North.** Azimuths in configuration and output are relative to true north. Grid north (UTM meridian convergence) and magnetic north (declination for the date, IGRF) are converted in `muoscene.site`; a value given relative to them must say so explicitly.
 
 ## Detector pose
 
@@ -38,7 +55,7 @@ They are the slopes an emulsion scan reports (dx/dz, dy/dz) and the ratios of hi
 
 **Scan frame.** Film axes used by the scanning laboratory are related to (x_d, y_d) by a fixed rotation or flip recorded in the exposure log; `muoscene.io.tracks` applies it when reading tracks.
 
-**Acceptance.** A detector accepts directions with u · z_d > 0 and sqrt(tx² + ty²) ≤ `tan_max`. The projected sensitive area is A (u · z_d).
+**Acceptance.** A detector accepts directions with u · z_d > 0 and sqrt(tx² + ty²) ≤ `tan_max`. The projected sensitive area is A (u · z_d). A detector point is never placed exactly on a boundary between bodies.
 
 ## Direction grid
 
@@ -48,32 +65,27 @@ Bins are rectangles in (tx, ty). The solid angle of the rectangle [0, a] × [0, 
 
 and a general bin follows from four corner terms. Expected counts in a bin are integrated over sub-samples (n × n directions per bin, `supersample` in the configuration).
 
-## Units
+## Bodies, densities and anomalies
 
-| Quantity | Internal unit | Notes |
-|---|---|---|
-| length | m | |
-| area of detectors | cm² | configuration fields end in `_cm2` |
-| density | g/cm³ | |
-| opacity X | g/cm² | X = ρ L × 100 for ρ in g/cm³ and L in m; 1 m w.e. = 100 g/cm² |
-| energy | GeV | total energy E ≥ m_μ |
-| flux | cm⁻² s⁻¹ sr⁻¹ | reports may show m⁻² s⁻¹ sr⁻¹ |
-| time | s | exposure in configuration is given by dates or in days |
-| angles | rad internally | configuration fields end in `_deg` |
+A scene is a list of bodies; each has a shape, a material (composition) and a bulk density. Moisture changes bulk density and composition in `muoscene.materials`. Where bodies overlap, precedence is: cuts (niches, excavations), then structures, then layers, then the ground; the builder realises it by subtracting cuts and by splitting structures at layer boundaries. The air of the scene has the density of the atmosphere at the site altitude.
 
-Configuration field names carry their unit: `length_m`, `area_cm2`, `tilt_deg`, `exposure_days`.
+An anomaly is a body that scales the density of its host by (1 + `drho_rel`): −1 is a void, −0.2 a 20 % decompaction. It lies inside exactly one host body; the builder refuses or splits an anomaly that crosses a boundary. Voxel overlays follow the same rule.
 
-## Energy threshold
+`PathTable` stores the path length in every body for every direction. Opacity under a hypothesis is the sum of length times density, so density hypotheses and density systematics never need a new scan.
 
-E_min(X) is the total energy with which a muon traverses opacity X along the line of sight and still reaches the sensitive volume: the CSDA range of the material sequence equals X, plus the detector's own packaging (`e_floor_gev` or an equivalent opacity). The flux through matter is I(> E_min(X), cos θ).
+## Energy and flux
 
-## Materials, density and anomalies
+**Energy** is the kinetic energy K of the muon at the detector, in GeV.
 
-A body has a material (composition, Z/A, mean excitation energy) and a bulk density. Moisture changes bulk density and composition in `muoscene.materials`.
+**Detector energy response.** Each detector has an efficiency ε(K); the default is a threshold `k_min_gev`. Counts in a bin are the exposure times the efficiency times the projected area times the integral over the bin and over K of ε(K) φ(K, direction).
 
-Anomalies are bodies that scale the density of whatever lies inside them by (1 + `drho_rel`): −1 is a void, −0.2 a 20 % decompaction. Voxel overlays work the same way. Density changes are applied to stored path lengths without retracing rays.
+**Reference flux and the altitude cut-off.** The default reference is GCCLY15 (Guan et al. 2015) at sea level; Mulder carries it through the atmosphere to the detector. For a detector above sea level this defines the flux only above K_cut(elevation), the energy lost in the air down to sea level: 0.28, 0.39 and 0.53 GeV at 1150 m for elevations of 90°, 45° and 30°. A run whose energy response reaches below the cut-off needs a tabulated reference at the site altitude; without one it is refused.
 
-Overlapping bodies are resolved by priority: cuts (niches, excavations) 100, structures 80, layers 40, ground 20; outside every body is air. Air opacity is ignored by default.
+**Flux table.** For each detector a `FluxTable` holds the differential flux on a grid of K, sine of elevation and opacity, computed by Mulder under a dense slab of the reference material at the detector altitude, with the configured atmosphere and, optionally, the geomagnetic field of a date. Tables are cached on disk by a hash of their inputs.
+
+**Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, where w_m is the ratio of the muon range in the reference material to that in material m at a reference energy (0.995 for concrete relative to loam). The atmosphere is part of the table and is not counted.
+
+**Fast and direct paths.** Expected maps use the fast path: scan, equivalent opacity, table lookup. Every run also computes the direct Mulder continuous flux for a random sample of directions and stores the deviation; in the spike it is 0.2 % rms. Mulder discrete flux, which includes scattering, is used for final numbers and to calibrate the scattering kernel.
 
 ## Expected map
 
@@ -82,13 +94,13 @@ Overlapping bodies are resolved by priority: cuts (niches, excavations) 100, str
 | Variable | Dimensions | Meaning |
 |---|---|---|
 | `solid_angle_sr` | ty, tx | solid angle of the bin |
-| `opacity_gcm2` | detector, hypothesis, ty, tx | mean opacity over sub-samples |
+| `opacity_gcm2` | detector, hypothesis, ty, tx | mean equivalent opacity over sub-samples |
 | `counts` | detector, hypothesis, ty, tx | expected number of tracks |
 | `transmission` | detector, hypothesis, ty, tx | flux through matter over open-sky flux |
 | `reference` | detector, ty, tx | bin sees open sky (opacity below the reference threshold) |
 | `zenith_deg`, `azimuth_deg` | detector, ty, tx | bin centre in ENU |
 
-Attributes carry the package version, configuration hash, creation time and exposure.
+Attributes carry the package and backend versions, the configuration hash, creation time, exposure, and the deviation of the fast path from the direct one.
 
 ## Tracks
 
@@ -96,8 +108,8 @@ Attributes carry the package version, configuration hash, creation time and expo
 
 ## Randomness
 
-Every stochastic function takes a `numpy.random.Generator`. Seeds are part of the configuration and are written to the run folder.
+Every stochastic function takes a `numpy.random.Generator`; Mulder discrete runs take an explicit seed. Seeds are part of the configuration and are written to the run folder.
 
 ## Legacy mode
 
-The preliminary calculation used for the 2027 grant application (spectrum clipped at cos θ = 0.25, energy loss a + bE with a 0.1 GeV offset, cone-based significance with the best of five cone sizes) is reproduced by explicit `legacy` options, used only by `tests/regression`. Defaults do not inherit its simplifications; `docs/legacy.md` lists them.
+The preliminary calculation used for the 2027 grant application is reproduced by `LegacyTable` (Guan et al. 2015 at sea level, energy loss a + bE with a 0.1 GeV offset) and by the cone significance estimator with the best of five cone sizes. They are used only by `tests/regression`. `docs/legacy.md` lists its simplifications and their size.
