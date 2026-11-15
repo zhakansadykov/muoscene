@@ -12,3 +12,4 @@
 - Mulder and Calzone spike (roadmap 0.1-02): results in `docs/notes/mulder.md`, reproducible by `docs/notes/spike/mulder_spike.py`.
 - Architecture decision: hybrid on top of Mulder and Calzone. They become core dependencies (`mulder>=0.3.7,<0.4`, `calzone>=1.2,<2`); numba is dropped; the `mc` extra is removed. Stub modules renamed to the new design: `geometry.builder`, `geometry.pathtable`, `transport.table`, `transport.direct`, `flux.atmosphere`. A test confines backend imports to the wrapping modules.
 - Conventions revised: kinetic energy at the detector, detector energy response, altitude cut-off, flux tables, equivalent opacity, bodies and anomalies. Roadmap for 0.1 rewritten.
+- Conventions approved (15 November 2026): kinetic energy, default detector threshold 1 GeV, reference flux at the site altitude in 0.1, domain of validity with refusal outside it. Roadmap: task 0.1-05b, reference at the site altitude.
