@@ -180,6 +180,26 @@ def integral_flux(meter, k_min=1e-3, k_max=1e5, n=801, **state):
     return np.trapezoid(np.asarray(meter.flux(energy=k, **state)) * k, np.log(k))
 
 
+def cutoff_energy(meter, **state):
+    """Lowest kinetic energy with a non-zero flux, by bisection in ln K; 0 if there is no cut-off."""
+    if float(meter.flux(energy=1e-7, **state)) > 0:
+        return 0.0
+    lo, hi = np.log(1e-7), np.log(10.0)
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        lo, hi = (lo, mid) if float(meter.flux(energy=np.exp(mid), **state)) > 0 else (mid, hi)
+    return float(np.exp(hi))
+
+
+def integral_flux_all(meter, **state):
+    """Integral flux over all energies. Above sea level the differential flux has an integrable
+    singularity at the cut-off, so the integral runs in ln(K - K_cut); a grid in ln K across the
+    cut-off is wrong by up to 1.3 % even with 100 nodes per decade (corrected 15 November 2026)."""
+    k_cut = cutoff_energy(meter, **state)
+    d = np.logspace(-9 if k_cut else -7, 5, 5601)
+    return np.trapezoid(np.asarray(meter.flux(energy=k_cut + d, **state)) * d, np.log(d))
+
+
 def integral_flux_many(meter, position, directions, k=K_GRID):
     """The same for many directions at once, on a coarser energy grid."""
     n, m = len(directions), len(k)
@@ -206,14 +226,16 @@ def exp_reference(args):
     print(
         f"vertical, sea level: I(E > 1 GeV) = {integral_flux(meter, k_min=1 - MU, altitude=0.0, **state):.2f}"
         f" (formula {guan_integral(1.0, 1.0):.2f}),"
-        f" all energies {integral_flux(meter, altitude=0.0, **state):.2f}"
+        f" all energies {integral_flux_all(meter, altitude=0.0, **state):.2f}"
         f" (formula {guan_integral(MU * 1.0001, 1.0):.2f}) m^-2 s^-1 sr^-1"
     )
     print("altitude  elevation  all energies  E>1 GeV  E>5 GeV  E>10 GeV")
     for altitude in (0.0, ALTITUDE):
         for elevation in (90.0, 45.0):
             s = dict(SITE, azimuth=0.0, elevation=elevation, altitude=altitude)
-            row = [integral_flux(meter, k_min=e - MU if e else 1e-3, **s) for e in (0, 1.0, 5.0, 10.0)]
+            row = [integral_flux_all(meter, **s)] + [
+                integral_flux(meter, k_min=e - MU, **s) for e in (1.0, 5.0, 10.0)
+            ]
             print(f"{altitude:8.0f}  {elevation:9.0f}  " + "  ".join(f"{v:8.3f}" for v in row))
 
 
@@ -399,6 +421,19 @@ def exp_scattering(args):
         print(line)
 
 
+def exp_local(args):
+    print("\n## E8 open sky through a local geometry against layers only, 45 deg towards the canyon")
+    u = np.array([-np.sqrt(0.5), 0.0, np.sqrt(0.5)])
+    d = detector(DEPTH)
+    local = integral_flux_all(mulder.Fluxmeter(geometry=build_scene(DEPTH)), position=d, direction=u)
+    state = dict(SITE, altitude=ALTITUDE + d[2], azimuth=270.0, elevation=45.0)
+    layers = integral_flux_all(mulder.Fluxmeter(), **state)
+    print(
+        f"from the niche {DEPTH:.0f} m below the brow: local geometry {local:.2f}, layers only {layers:.2f}"
+        " m^-2 s^-1 sr^-1"
+    )
+
+
 def exp_season(args):
     print(f"\n## E9 season at {ALTITUDE:.0f} m: open sky against 20 m of soil, vertical, m^-2 s^-1 sr^-1")
     layer = mulder.Layer(ALTITUDE, material="Loam", density=SOIL)
@@ -407,8 +442,8 @@ def exp_season(args):
         meter = mulder.Fluxmeter(layer, atmosphere=model)
         s = dict(SITE, azimuth=0.0, elevation=90.0)
         rows[model] = (
-            integral_flux(meter, altitude=ALTITUDE + 0.01, **s),
-            integral_flux(meter, altitude=ALTITUDE - 20, **s),
+            integral_flux_all(meter, altitude=ALTITUDE + 0.01, **s),
+            integral_flux_all(meter, altitude=ALTITUDE - 20, **s),
         )
         print(
             f"{model:20s} open sky {rows[model][0]:8.3f}   under 20 m {rows[model][1]:7.4f}"
@@ -422,7 +457,7 @@ def exp_season(args):
     )
     meter = mulder.Fluxmeter(layer, date="2028-10-15")
     east, west = (
-        integral_flux(meter, altitude=ALTITUDE + 0.01, azimuth=a, elevation=45.0, **SITE)
+        integral_flux_all(meter, altitude=ALTITUDE + 0.01, azimuth=a, elevation=45.0, **SITE)
         for a in (90.0, 270.0)
     )
     print(
@@ -643,6 +678,7 @@ EXPERIMENTS = {
     "wall": exp_wall,
     "significance": exp_significance,
     "scattering": exp_scattering,
+    "local": exp_local,
     "season": exp_season,
     "speed": exp_speed,
     "hybrid": exp_hybrid,

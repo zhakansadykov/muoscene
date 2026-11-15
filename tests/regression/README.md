@@ -1,1 +1,1 @@
-Regression against the preliminary calculation (sens.py, tilt.py) on the synthetic canyon: reference numbers frozen in JSON. Planned for 0.1.
+Frozen reference numbers: the preliminary calculation (`legacy.py`, cases in `legacy_cases.py`) and Mulder with Calzone (`mulder_cases.py`), in `data/`. How they were made and what they mean: `docs/legacy.md`.
