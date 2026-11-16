@@ -1,6 +1,6 @@
 # Conventions
 
-Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`). Every module follows these rules; a change here is a breaking change and is recorded in `CHANGELOG.md`.
+Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`); revision 3 of 16 November 2026. Revision 2 (16 November): equivalent-opacity weights depend on energy, a soil is a mixture of skeleton and water. Revision 3 (16 November, after the review): decay along the air path, numbers quoted for two detector thresholds, the site-altitude reference from 0.1.1. Every module follows these rules; a change here is a breaking change, is made on purpose in a commit of its own and is recorded in `CHANGELOG.md`.
 
 ## Backends and units
 
@@ -77,16 +77,16 @@ An anomaly is a body that scales the density of its host by (1 + `drho_rel`): �
 
 **Energy** is the kinetic energy K of the muon at the detector, in GeV.
 
-**Detector energy response.** Each detector has an efficiency ε(K); the default is a threshold `k_min_gev = 1.0`. Counts in a bin are the exposure times the efficiency times the projected area times the integral over the bin and over K of ε(K) φ(K, direction). Momentum, where needed (scattering), is p = sqrt(K² + 2 K m_μ).
+**Detector energy response.** Each detector has an efficiency ε(K); the default is a threshold `k_min_gev = 1.0`. The response of an emulsion stack depends on the track selection of the scanning laboratory and is not known yet; until it is, numbers are quoted for thresholds of 0.2 and 1 GeV (`docs/numbers.md`); with a sea-level reference the lower one holds only under soil, where no cut-off is left. Counts in a bin are the exposure times the efficiency times the projected area times the integral over the bin and over K of ε(K) φ(K, direction). Momentum, where needed (scattering), is p = sqrt(K² + 2 K m_μ).
 
 **Reference flux and the altitude cut-off.** The reference flux is the open-sky flux at the site, from which Mulder transports muons to the detector through the scene. Two kinds are supported:
 
-- *Sea-level reference* — GCCLY15 (Guan et al. 2015), the Mulder default. Mulder carries it through the air between sea level and the site. Above sea level this defines the flux only above K_cut(elevation), the energy lost in that air: 0.28, 0.39, 0.53 GeV at 1150 m and 0.69, 0.97, 1.40 GeV at 3340 m for elevations of 90°, 45°, 30°. Production and decay of muons in that air layer are not modelled. Below sea level the reference is carried down through the extra air and has no cut-off.
-- *Site-altitude reference* — a table of the open-sky differential flux in K and elevation computed for the altitude of the site (MCEq, or a measured open-sky spectrum), passed to Mulder as a tabulated reference. It has no cut-off and includes production and decay in the air. It is the default when the site is more than 100 m above sea level.
+- *Sea-level reference* — GCCLY15 (Guan et al. 2015), the Mulder default. Mulder carries it through the air between sea level and the site. Above sea level this defines the flux only above K_cut(elevation), the energy lost in that air: 0.28, 0.38, 0.53 GeV at 1150 m and 0.69, 0.97, 1.40 GeV at 3340 m for elevations of 90°, 45°, 30°. Mulder applies muon decay along that air path: the flux at altitude is the sea-level flux at the shifted energy times the ratio of stopping powers times exp(Δτ/τ), 1.21 at 1 GeV and 1.04 at 5 GeV at 1150 m. Production of muons in that air layer is not modelled. Below sea level the reference is carried down through the extra air and has no cut-off.
+- *Site-altitude reference* — a table of the open-sky differential flux in K and elevation computed for the altitude of the site (a model of the atmospheric flux such as PARMA, cross-checked with MCEq, or a measured open-sky spectrum), passed to Mulder as a tabulated reference. It has no cut-off and includes production and decay in the air. It is the default when the site is more than 100 m above sea level, from version 0.1.1 on; version 0.1.0 has the sea-level reference only.
 
 A run whose energy response reaches below the cut-off of a sea-level reference is refused.
 
-**Flux table.** For each detector a `FluxTable` holds the differential flux on a grid of K, sine of elevation and opacity, computed by Mulder under a dense slab of the reference material at the detector altitude, with the configured atmosphere and, optionally, the geomagnetic field of a date. Tables are cached on disk by a hash of their inputs.
+**Flux table.** For each detector a `FluxTable` holds the differential flux on a grid of K, sine of elevation and opacity, computed by Mulder under a dense slab of the reference material at the detector altitude, with the configured atmosphere and, optionally, the geomagnetic field of a date. Tables are cached on disk by a hash of their inputs. With a sea-level reference a table holds only energies above the cut-off, and an integral over the energy response is a trapezoid sum that starts at the threshold itself.
 
 **Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, where w_m(K) = R_ref(K) / R_m(K) is the ratio of CSDA muon ranges in the reference material and in material m at kinetic energy K (0.995 for concrete relative to the loam of the spike at 7 GeV). For a path through one material X_eq = R_ref(R_m⁻¹(X)) exactly; the energy at which the weights of a path through several materials are taken is set by the forward model (roadmap 0.1-08). The atmosphere is part of the table and is not counted.
 
@@ -99,12 +99,13 @@ Every run checks where it stands and writes it to the run report. Outside the do
 | Condition | Version 0.1 | Beyond |
 |---|---|---|
 | site below sea level | sea-level reference carried down | — |
-| site above sea level | site-altitude reference, no cut-off | — |
+| site above sea level | 0.1.0: sea-level reference, only above K_cut; from 0.1.1: site-altitude reference, no cut-off | — |
 | sea-level reference above sea level | allowed only above K_cut for all accepted directions | — |
 | opacity up to 3e4 g/cm² (about 100 m of rock) along accepted directions | continuous transport | — |
 | larger opacity | refused | tables in mixed mode, version 0.3 |
 | targets of a few metres and less | continuous transport, scattering not applied; the report gives the scattering factor measured for the configuration when available | discrete mode and a scattering kernel, version 0.3 |
 
+## Expected map
 
 `ExpectedMap` is an `xarray.Dataset` with dimensions `detector`, `hypothesis`, `ty`, `tx` (later `variant` for systematics):
 
