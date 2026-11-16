@@ -8,7 +8,7 @@ A site model — terrain and a near-vertical canyon wall, soil layers, piles and
 
 Geometry navigation and muon physics are not reimplemented: scenes are built with [Calzone](https://github.com/niess/calzone) and scanned by [Mulder](https://github.com/niess/mulder) (V. Niess; PUMAS inside), which also provides the reference flux, the atmosphere and energy loss. muoscene adds the description of engineering scenes, a fast flux path through tables built by Mulder, detector responses, planning statistics and comparison with data. The reasons and the numbers are in `docs/notes/mulder.md`.
 
-> Status: pre-alpha (0.0.1.dev0). Materials are implemented (`muoscene.materials`); scenes, flux tables, detectors and commands are not yet. Roadmap — `docs/roadmap.md`; numbers and their conditions — `docs/numbers.md`.
+> Status: pre-alpha (0.0.1.dev0). Materials and flux tables are implemented (`muoscene.materials`, `muoscene.flux`); scenes, detectors and commands are not yet. Roadmap — `docs/roadmap.md`; numbers and their conditions — `docs/numbers.md`.
 
 ## Install (development)
 

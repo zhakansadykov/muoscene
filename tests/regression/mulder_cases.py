@@ -5,7 +5,8 @@ Calzone can be checked against: the GCCLY15 reference, open-sky flux at sea leve
 energy thresholds and ranges, a uniform soil slab, the altitude cut-off, atmosphere models, the
 geomagnetic field, the tables behind the transport, the path in the wall with a niche of
 `legacy_cases`, and the reference void: without a detector threshold, as in the preliminary
-calculation, and above the thresholds of `THRESHOLDS`.
+calculation, and above the thresholds of `THRESHOLDS`. For the flux tables (roadmap 0.1-05):
+open sky at a site below sea level, and the flux above those thresholds under a soil slab.
 
 Energies: K is the kinetic energy at the detector (Mulder), E = K + m the total energy (the
 preliminary calculation and the spike note). Units: m and kg/m^3 (Mulder), g/cm^2 for opacity;
@@ -57,6 +58,8 @@ VOID_DEPTH = 10.0
 THRESHOLDS = (0.2, 1.0)
 THIN_DEPTH = 0.5  # m of soil: 90 g/cm^2 against 134 g/cm^2 of air between 1150 m and sea level
 THIN_ZENITH = (0.0, 45.0)
+BELOW = -430.0  # m, a site below sea level: the reference is carried down through more air
+THRESHOLD_DEPTHS = (0.5, 2.0, 20.0)  # m of soil over a detector with a threshold of THRESHOLDS
 # Relative tolerance of the frozen numbers. Spread between platforms: 3e-9 between Linux arm64 and
 # x86-64; on macOS arm64 up to 3.1e-6 in the elastic-scattering tables and 4e-9 elsewhere. The
 # mildest change of physics tried, the pair-production model of Mulder, moves thresholds by 8e-5.
@@ -237,6 +240,26 @@ def thin_slab(zenith):
         "E>1GeV": integral(meter, k_above(1.0), **state),
         "cutoff_gev": cutoff_of(meter, **state),
     }
+
+
+def below_sea_level():
+    """Open sky at BELOW, vertical: no cut-off; integral fluxes above total and kinetic energies."""
+    meter = mulder.Fluxmeter()
+    state = dict(SITE, altitude=BELOW, azimuth=0.0, elevation=90.0)
+    out = {"cutoff_gev": cutoff_of(meter, **state)}
+    out |= {f"E>{e:g}GeV": integral(meter, k_above(e), **state) for e in (1.0, 5.0, 10.0)}
+    return out | {f"K>{k:g}GeV": integral(meter, k, **state) for k in THRESHOLDS}
+
+
+def threshold_slab(depth, zenith):
+    """Under `depth` of soil at ALTITUDE: integral flux above the detector thresholds of THRESHOLDS.
+
+    Under THIN_DEPTH the lower threshold is above the cut-off left at the detector (`thin_slab`).
+    """
+    define_materials()
+    meter = mulder.Fluxmeter(mulder.Layer(ALTITUDE, material="RegLoam", density=SOIL))
+    state = dict(SITE, altitude=ALTITUDE - depth, azimuth=0.0, elevation=90.0 - zenith)
+    return {f"K>{k:g}GeV": integral(meter, k, **state) for k in THRESHOLDS}
 
 
 def season(model):
@@ -434,6 +457,11 @@ def _cases():
     for zenith in THIN_ZENITH:
         name = f"thin_slab/{ALTITUDE:.0f}m/{THIN_DEPTH:g}m/zenith{zenith:g}"
         out[name] = functools.partial(thin_slab, zenith)
+    out[f"below_sea_level/{BELOW:.0f}m/elev90"] = below_sea_level
+    for depth in THRESHOLD_DEPTHS:
+        for zenith in THIN_ZENITH:
+            name = f"threshold_slab/{ALTITUDE:.0f}m/{depth:g}m/zenith{zenith:g}"
+            out[name] = functools.partial(threshold_slab, depth, zenith)
     return out
 
 
@@ -465,6 +493,13 @@ def parameters():
         "table_kinetic_energies_gev": list(TABLE_ENERGIES),
         "slab": {"depths_m": list(DEPTHS), "zenith_deg": list(ZENITH), "soil": "RegLoam"},
         "thin_slab": {"depth_m": THIN_DEPTH, "zenith_deg": list(THIN_ZENITH), "altitude_m": ALTITUDE},
+        "below_sea_level_m": BELOW,
+        "threshold_slab": {
+            "depths_m": list(THRESHOLD_DEPTHS),
+            "zenith_deg": list(THIN_ZENITH),
+            "altitude_m": ALTITUDE,
+            "soil": "RegLoam",
+        },
         "detector_thresholds_gev": list(THRESHOLDS),
         "integration": {
             "above a threshold": "trapezoids in ln K, 801 nodes up to 1e5 GeV",

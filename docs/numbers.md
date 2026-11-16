@@ -1,6 +1,6 @@
 # Headline numbers and their conditions
 
-The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`. Last update: 16 November 2026, Mulder 0.3.7, Calzone 1.2.2.
+The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`. Last update: 16 November 2026, Mulder 0.3.7, Calzone 1.2.2.
 
 ## The reference void
 
@@ -50,6 +50,24 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 | cut-off of the sea-level reference at 1150 m | 0.28, 0.38, 0.53 GeV | elevation 90°, 45°, 30°; 0.62 GeV at 25°, 1.0 GeV at 15° | `cutoff/1150m/…` |
 | the same at 3340 m | 0.69, 0.97, 1.40 GeV | elevation 90°, 45°, 30° | `cutoff/3340m/…` |
 | cut-off left under 0.5 m of soil at 1150 m | 0.12, 0.16 GeV | zenith 0°, 45° | `thin_slab/1150m/0.5m/…` |
+
+## Flux tables
+
+`MulderTable` of a detector at 1150 m with the loam of the spike as reference material, unless stated (`docs/notes/flux.md`). Continuous transport; thresholds are kinetic energies at the detector.
+
+| Quantity | Value | Conditions | Test or frozen case |
+|---|---|---|---|
+| vertical intensity 430 m below sea level | 56.69 m⁻² s⁻¹ sr⁻¹ | total energy above 1 GeV, against 60.50 at sea level; no cut-off | `below_sea_level/-430m/elev90` |
+| vertical flux under soil of 1.8 g/cm³ | 96.70 and 64.50 under 0.5 m, 74.33 and 52.92 under 2 m, 13.02 and 11.09 m⁻² s⁻¹ sr⁻¹ under 20 m | above 0.2 and 1 GeV; Mulder with the real soil | `threshold_slab/1150m/…/zenith0` |
+| table against Mulder under a dense slab, differential flux | rms 0.0035 %, largest 0.045 % | 16 150 random energies, elevations and opacities, up to 1 TeV and from 10 MeV above the cut-off | `test_table_is_within_02_percent_of_mulder_at_random_points` |
+| the same above 1 TeV | rms 0.044 %, largest 0.79 % | 3850 points; under 2.5·10⁴ g/cm² the flux of Mulder wavers by 0.34 % around 2 TeV, the table by 0.09 % | the same and `test_mulder_ripples_above_1_tev_under_a_thick_slab` |
+| table against Mulder under a dense slab, integral flux | within 6·10⁻⁵ | above 0.2 and 1 GeV, 12 random directions each | `test_integrals_are_those_of_mulder_under_a_slab` |
+| table at the altitude of the detector against real soil above it | −0.05 to −0.10 % | every muon under 10–30 m at zenith angles of 0–60°: the table has air in place of that soil; a table at the altitude of the surface is +0.03 to +0.05 %, it takes no decay in the soil | `test_slab_numbers_of_the_spike` |
+| the same above 0.2 and 1 GeV | −0.007 to −0.013 % under 0.5 m, −0.018 % under 2 m, −0.074 to −0.077 % under 20 m | zenith 0° and 45° | `test_detector_thresholds_under_soil` |
+| a sum that gives its first node a whole step | +2.85 % at sea level, +3.29 % at 1150 m | vertical, 61 nodes from 1 GeV to 10 TeV, against trapezoids from the threshold | `test_a_sum_from_the_first_node_is_two_to_three_percent_high` |
+| where a threshold of 1 GeV holds in the open sky | from 15.7° of elevation (sine 0.27) | the cut-off is 0.98 GeV there and 1.02 GeV at 15.1°; a table starts 10 MeV above its cut-off | `test_the_table_holds_only_energies_above_the_cutoff` |
+| opacity under which no cut-off is left | 138 g/cm² by the vertical, 569 g/cm² at 14.5° | loam of the spike | the same |
+| muons above the top of a table, 10 TeV at the detector | 3·10⁻⁶ under 3·10⁴ g/cm², 2·10⁻⁸ in the open sky | of the muons above 1 GeV, vertical | `test_muons_above_the_table_do_not_matter` |
 
 ## Accuracy of the base
 

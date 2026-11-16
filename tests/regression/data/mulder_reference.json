@@ -1,6 +1,14 @@
 {
  "about": "Numbers of the Mulder and Calzone spike (docs/notes/mulder.md) on synthetic scenes, continuous transport. K is the kinetic energy at the detector, E = K + m. Units: m, kg/m^3, g/cm^2 for opacity, GeV, m^-2 s^-1 sr^-1 (GeV^-1 for differential fluxes); physics tables in the units of Mulder.",
  "cases": {
+  "below_sea_level/-430m/elev90": {
+   "E>10GeV": 8.25536301811084,
+   "E>1GeV": 56.68803317538818,
+   "E>5GeV": 19.04357119823706,
+   "K>0.2GeV": 73.8027093264813,
+   "K>1GeV": 54.5624922501228,
+   "cutoff_gev": 0.0
+  },
   "cutoff/1150m/elev30": 0.5309249803958279,
   "cutoff/1150m/elev45": 0.38476154890472425,
   "cutoff/1150m/elev90": 0.28341359749035866,
@@ -386,6 +394,30 @@
    52.369729196128205,
    81.2212115282505
   ],
+  "threshold_slab/1150m/0.5m/zenith0": {
+   "K>0.2GeV": 96.69553368346759,
+   "K>1GeV": 64.49705491945024
+  },
+  "threshold_slab/1150m/0.5m/zenith45": {
+   "K>0.2GeV": 48.36757319216849,
+   "K>1GeV": 35.57875109328982
+  },
+  "threshold_slab/1150m/20m/zenith0": {
+   "K>0.2GeV": 13.01919623470873,
+   "K>1GeV": 11.085667523255875
+  },
+  "threshold_slab/1150m/20m/zenith45": {
+   "K>0.2GeV": 6.695528485939948,
+   "K>1GeV": 5.977181444341362
+  },
+  "threshold_slab/1150m/2m/zenith0": {
+   "K>0.2GeV": 74.33104293847443,
+   "K>1GeV": 52.92171332609241
+  },
+  "threshold_slab/1150m/2m/zenith45": {
+   "K>0.2GeV": 36.929218801529494,
+   "K>1GeV": 29.05955644407453
+  },
   "wall/flat/12m": [
    0.1641476300299351,
    0.23184046238739256,
@@ -1102,6 +1134,7 @@
   "python": "3.12.15"
  },
  "parameters": {
+  "below_sea_level_m": -430.0,
   "detector_thresholds_gev": [
    0.2,
    1.0
@@ -1218,6 +1251,19 @@
   "thin_slab": {
    "altitude_m": 1150.0,
    "depth_m": 0.5,
+   "zenith_deg": [
+    0.0,
+    45.0
+   ]
+  },
+  "threshold_slab": {
+   "altitude_m": 1150.0,
+   "depths_m": [
+    0.5,
+    2.0,
+    20.0
+   ],
+   "soil": "RegLoam",
    "zenith_deg": [
     0.0,
     45.0

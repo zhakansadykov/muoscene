@@ -196,3 +196,28 @@ def test_physics_models_are_the_defaults_of_the_spike():
         "cutoff": 0.05,
         "elastic_ratio": 0.05,
     }
+
+
+def test_below_sea_level_the_flux_is_lower_and_has_no_cutoff():
+    """At -430 m the reference is carried down through 430 m more air: 56.69 against 60.50 above 1 GeV."""
+    low, sea = CASES["below_sea_level/-430m/elev90"], CASES["open_sky/0m/elev90"]
+    assert low["cutoff_gev"] == 0
+    assert low["E>1GeV"] == pytest.approx(56.69, abs=0.01)
+    for key in ("E>1GeV", "E>5GeV", "E>10GeV"):
+        assert low[key] < sea[key]
+    assert low["E>10GeV"] / sea["E>10GeV"] > low["E>1GeV"] / sea["E>1GeV"]  # the soft muons lose most
+    assert low["K>1GeV"] < low["E>1GeV"] < low["K>0.2GeV"]  # E > 1 GeV is K > 0.894 GeV
+
+
+def test_detector_threshold_under_a_slab():
+    """Under 20 m of soil a threshold of 1 GeV takes 15 % of the muons above 0.2 GeV, under 0.5 m a third."""
+    for depth, loss in ((0.5, 0.333), (2.0, 0.288), (20.0, 0.149)):
+        case = CASES[f"threshold_slab/1150m/{depth:g}m/zenith0"]
+        assert 1 - case["K>1GeV"] / case["K>0.2GeV"] == pytest.approx(loss, abs=0.001)
+    for zenith in (0, 45):
+        thick, mid, thin = (CASES[f"threshold_slab/1150m/{d}m/zenith{zenith}"] for d in ("20", "2", "0.5"))
+        for key in ("K>0.2GeV", "K>1GeV"):
+            assert thick[key] < mid[key] < thin[key]
+        # the lower threshold is above the cut-off that half a metre of soil leaves
+        assert CASES[f"thin_slab/1150m/0.5m/zenith{zenith}"]["cutoff_gev"] < mulder_cases.THRESHOLDS[0]
+        assert thin["K>1GeV"] < CASES[f"thin_slab/1150m/0.5m/zenith{zenith}"]["E>1GeV"]
