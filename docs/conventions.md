@@ -67,7 +67,7 @@ and a general bin follows from four corner terms. Expected counts in a bin are i
 
 ## Bodies, densities and anomalies
 
-A scene is a list of bodies; each has a shape, a material (composition) and a bulk density. Moisture changes bulk density and composition in `muoscene.materials`. Where bodies overlap, precedence is: cuts (niches, excavations), then structures, then layers, then the ground; the builder realises it by subtracting cuts and by splitting structures at layer boundaries. The air of the scene has the density of the atmosphere at the site altitude.
+A scene is a list of bodies; each has a shape, a material (composition) and a bulk density. A soil is given by its mineral skeleton, dry density and gravimetric water content; its material is a mixture of the skeleton at the particle density and water, and its bulk density ρ_d (1 + w) goes to the geometry. Every material carries an explicit mean excitation energy: tabulated, or by the Berger–Seltzer rule (`docs/notes/materials.md`). Where bodies overlap, precedence is: cuts (niches, excavations), then structures, then layers, then the ground; the builder realises it by subtracting cuts and by splitting structures at layer boundaries. The air of the scene has the density of the atmosphere at the site altitude.
 
 An anomaly is a body that scales the density of its host by (1 + `drho_rel`): −1 is a void, −0.2 a 20 % decompaction. It lies inside exactly one host body; the builder refuses or splits an anomaly that crosses a boundary. Voxel overlays follow the same rule.
 
@@ -88,7 +88,7 @@ A run whose energy response reaches below the cut-off of a sea-level reference i
 
 **Flux table.** For each detector a `FluxTable` holds the differential flux on a grid of K, sine of elevation and opacity, computed by Mulder under a dense slab of the reference material at the detector altitude, with the configured atmosphere and, optionally, the geomagnetic field of a date. Tables are cached on disk by a hash of their inputs.
 
-**Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, where w_m is the ratio of the muon range in the reference material to that in material m at a reference energy (0.995 for concrete relative to loam). The atmosphere is part of the table and is not counted.
+**Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, where w_m(K) = R_ref(K) / R_m(K) is the ratio of CSDA muon ranges in the reference material and in material m at kinetic energy K (0.995 for concrete relative to the loam of the spike at 7 GeV). For a path through one material X_eq = R_ref(R_m⁻¹(X)) exactly; the energy at which the weights of a path through several materials are taken is set by the forward model (roadmap 0.1-08). The atmosphere is part of the table and is not counted.
 
 **Fast and direct paths.** Expected maps use the fast path: scan, equivalent opacity, table lookup. Every run also computes the direct Mulder continuous flux for a random sample of directions and stores the deviation; in the spike it is 0.2 % rms. Mulder discrete flux, which includes scattering, is used for final numbers and to calibrate the scattering kernel.
 
