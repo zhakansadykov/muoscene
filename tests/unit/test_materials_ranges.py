@@ -92,8 +92,21 @@ def test_range_and_inverse_range_round_trip():
         # Mulder interpolates its range tables: the round trip holds to 6e-6
         np.testing.assert_allclose(M.energy_to_cross(material, M.csda_range(material, k)), k, rtol=1e-5)
     assert isinstance(M.csda_range(M.WATER, 10.0), float)
+    assert M.csda_range(M.WATER, 0.0) == 0.0
+    assert M.energy_to_cross(M.WATER, 0.0) == 0.0
+
+
+@pytest.mark.parametrize("bad", [-1.0, float("nan"), 1e9])
+def test_values_outside_the_tables_are_refused(bad):
+    """Nothing is extrapolated: 1e9 g/cm^2 used to come back as an infinite energy."""
     with pytest.raises(ValueError):
-        M.energy_to_cross(M.WATER, -1.0)
+        M.energy_to_cross(M.WATER, bad)
+    with pytest.raises(ValueError):
+        M.csda_range(M.WATER, bad)
+    with pytest.raises(ValueError):
+        M.weight(M.CONCRETE, M.WATER, bad)
+    with pytest.raises(ValueError, match="zero energy"):
+        M.weight(M.CONCRETE, M.WATER, 0.0)
 
 
 def test_weight_and_equivalent_opacity():

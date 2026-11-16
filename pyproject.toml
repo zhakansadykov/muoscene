@@ -27,7 +27,7 @@ dependencies = [
     # geometry and muon transport: the 0.x API is isolated in geometry, materials, flux, transport, site
     "mulder>=0.3.7,<0.4",
     "calzone>=1.2,<2",
-    "numpy>=1.26",
+    "numpy>=2.0",  # numpy.trapezoid
     "scipy>=1.11",
     "pyyaml>=6",
     "pydantic>=2.5",

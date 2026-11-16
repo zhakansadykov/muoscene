@@ -69,6 +69,26 @@ def test_synthetic_geometry_passes(repo, name):
     assert check_private.problems(write(name)) == []
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["docs/drawing.pdf", "scan.jpg", "boreholes.xlsx", "points.csv", "dem.tif", "wall.obj", "figure.png"],
+)
+def test_other_types_are_refused_outside_the_synthetic_directories(repo, name):
+    assert any("not allowed" in m for m in check_private.problems(write(name)))
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["docs/notes/figure.png", "examples/slab/points.csv", "tests/data/wall.obj", "LICENSE", ".gitignore"],
+)
+def test_repository_file_types_pass(repo, name):
+    assert check_private.problems(write(name)) == []
+
+
+def test_a_directory_named_like_a_synthetic_one_deeper_in_the_tree_does_not_count(repo):
+    assert check_private.problems(write("docs/examples/survey.dwg"))
+
+
 def test_missing_path_does_not_crash(repo):
     assert check_private.problems(pathlib.Path("deleted.yaml")) == []
 

@@ -258,11 +258,35 @@
    "effect_percent": 6.075571030297855,
    "sig": 10.729920018015422
   },
+  "reference_void/0m/cone1/K>0.2GeV": {
+   "N0": 33604.1211273991,
+   "N1": 35606.31318899832,
+   "effect_percent": 5.958174159676899,
+   "sig": 10.297533255485437
+  },
+  "reference_void/0m/cone1/K>1GeV": {
+   "N0": 27438.880499014744,
+   "N1": 28929.514134208686,
+   "effect_percent": 5.432559959024075,
+   "sig": 8.484211009020948
+  },
   "reference_void/1150m/cone1": {
    "N0": 39162.445867133574,
    "N1": 41690.94994307812,
    "effect_percent": 6.456450867555619,
    "sig": 12.046267226268377
+  },
+  "reference_void/1150m/cone1/K>0.2GeV": {
+   "N0": 37411.177478872625,
+   "N1": 39775.147177893385,
+   "effect_percent": 6.318886114599764,
+   "sig": 11.522983913891162
+  },
+  "reference_void/1150m/cone1/K>1GeV": {
+   "N0": 30221.464394294733,
+   "N1": 31948.44558159232,
+   "effect_percent": 5.714419277523852,
+   "sig": 9.365987917810502
   },
   "season/midlatitude-summer": {
    "open_sky/E>1GeV": 72.3604081908715,
@@ -312,6 +336,16 @@
   "slab/1150m/30m/zenith30": 5.635639478955657,
   "slab/1150m/30m/zenith45": 3.813543352783522,
   "slab/1150m/30m/zenith60": 1.9525633676379608,
+  "thin_slab/1150m/0.5m/zenith0": {
+   "E>1GeV": 67.43494793050738,
+   "all": 106.09272693994556,
+   "cutoff_gev": 0.12365075442744766
+  },
+  "thin_slab/1150m/0.5m/zenith45": {
+   "E>1GeV": 36.75529686694935,
+   "all": 50.67728552378625,
+   "cutoff_gev": 0.16193609436693318
+  },
   "threshold/RegConcrete": [
    0.9228929361796581,
    1.8690856656840822,
@@ -1064,15 +1098,20 @@
  "generated_with": {
   "calzone": "1.2.2",
   "mulder": "0.3.7",
-  "numpy": "2.5.4",
+  "numpy": "2.5.5",
   "python": "3.12.15"
  },
  "parameters": {
+  "detector_thresholds_gev": [
+   0.2,
+   1.0
+  ],
   "eps_m": 0.001,
   "integration": {
    "above a threshold": "trapezoids in ln K, 801 nodes up to 1e5 GeV",
    "all energies": "trapezoids in ln(K - K_cut), 5601 nodes from 1e-9 GeV; 1e-7 GeV if no cut-off",
-   "many directions": "rectangles in ln K, 71 nodes from 1e-3 to 1e4 GeV"
+   "many directions": "rectangles in ln K, 71 nodes from 1e-3 to 1e4 GeV",
+   "many directions above a threshold": "trapezoids in ln K, 121 nodes from it to 1e4 GeV"
   },
   "materials": {
    "RegConcrete": {
@@ -1176,6 +1215,14 @@
    100.0,
    1000.0
   ],
+  "thin_slab": {
+   "altitude_m": 1150.0,
+   "depth_m": 0.5,
+   "zenith_deg": [
+    0.0,
+    45.0
+   ]
+  },
   "wall": "niche and directions of legacy_cases; ground 1500 x 3000 x 400 m; floor EPS below it"
  }
 }

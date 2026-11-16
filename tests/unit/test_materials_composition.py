@@ -119,6 +119,8 @@ def test_bad_materials_are_refused():
         Material.from_elements("x", {"Si": 1.0}, 1.0, i_ev="guess")
     with pytest.raises(ValueError, match="unknown element"):
         Material.from_elements("x", {"Qq": 1.0}, 1.0)
+    with pytest.raises(ValueError, match="listed twice"):
+        Material("x", (("Si", 0.5), ("Si", 0.2), ("O", 0.5)), 2.0, 100.0)
 
 
 # ------------------------------------------------ mixtures and soils

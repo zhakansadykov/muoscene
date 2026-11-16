@@ -78,7 +78,7 @@ CALCITE = Material.from_formula(
 SILICATE_SKELETON = Material.from_oxides(
     "silicate soil skeleton",
     {
-        "SiO2": 66.62,
+        "SiO2": 66.62,  # 66.6 as printed in Table 3
         "TiO2": 0.64,
         "Al2O3": 15.40,
         "FeO": 5.04,  # total iron as FeO
@@ -90,7 +90,7 @@ SILICATE_SKELETON = Material.from_oxides(
         "P2O5": 0.15,
     },
     density_g_cm3=2.70,
-    source="upper continental crust, R. L. Rudnick, S. Gao, Treatise on Geochemistry (2003; 2nd ed. 2014), "
+    source="upper continental crust, R. L. Rudnick, S. Gao, Treatise on Geochemistry, vol. 3 (2003), "
     "Table 3; particle density 2.70 g/cm3, typical of silty and clayey soils (2.60-2.80); "
     "I by Berger-Seltzer",
 )

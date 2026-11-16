@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python: ["3.12", "3.14"]
+        python: ["3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -22,7 +22,8 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: pip install -e ".[dev]"
+      # the backends are pinned here: a new release of Mulder or Calzone is met by upstream.yml first
+      - run: pip install -e ".[dev]" -c .github/constraints.txt
       - run: ruff check .
       - run: ruff format --check .
       - run: python scripts/make_zenodo_json.py --check

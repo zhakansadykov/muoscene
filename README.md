@@ -8,7 +8,7 @@ A site model — terrain and a near-vertical canyon wall, soil layers, piles and
 
 Geometry navigation and muon physics are not reimplemented: scenes are built with [Calzone](https://github.com/niess/calzone) and scanned by [Mulder](https://github.com/niess/mulder) (V. Niess; PUMAS inside), which also provides the reference flux, the atmosphere and energy loss. muoscene adds the description of engineering scenes, a fast flux path through tables built by Mulder, detector responses, planning statistics and comparison with data. The reasons and the numbers are in `docs/notes/mulder.md`.
 
-> Status: skeleton (0.0.1.dev0). Nothing is computed yet. Roadmap — `docs/roadmap.md`.
+> Status: pre-alpha (0.0.1.dev0). Materials are implemented (`muoscene.materials`); scenes, flux tables, detectors and commands are not yet. Roadmap — `docs/roadmap.md`; numbers and their conditions — `docs/numbers.md`.
 
 ## Install (development)
 
@@ -32,11 +32,11 @@ Optional extras: `mesh`, `survey`, `viz3d`, `data`, `mceq`, `docs`.
 | `plan`, `synth`, `data`, `invert` | significance and planning; synthetic tracks; comparison with data; inversion (v2) |
 | `io`, `viz`, `report`, `provenance`, `pipeline`, `cli` | files in and out; 3D scene and figures; reports; run folders; orchestration of the stages; commands |
 
-Three import rules are checked by `tests/unit/test_layers.py`: a module imports only modules of its own or a lower layer (`src/muoscene/_layers.py`); packages installed with extras are imported inside functions, so every module imports with the core dependencies alone; the computing core (layers 0–4) never imports graphics; Mulder and Calzone are imported only by the modules that wrap them.
+Four import rules are checked by `tests/unit/test_layers.py`: a module imports only modules of its own or a lower layer (`src/muoscene/_layers.py`); packages installed with extras are imported inside functions, so every module imports with the core dependencies alone; the computing core (layers 0–4) never imports graphics; Mulder and Calzone are imported only by the modules that wrap them.
 
 ## Site data stay outside
 
-Geometry and survey of real objects, their configurations and runs live outside this repository. Refused at commit and checked again in CI (`scripts/check_private.py`): files with the marker line `# PRIVATE-SITE`, names `*.private.*`, anything under a `private/` directory, files over 500 kB, and survey or CAD formats (`.dwg`, `.dxf`, `.las`, `.laz`, `.e57`, `.ifc`, `.rvt`, `.landxml`) outside `examples/` and `tests/`. Put the marker line at the top of every configuration of a real object. Examples use a synthetic canyon (`examples/canyon_demo`).
+Geometry and survey of real objects, their configurations and runs live outside this repository. Refused at commit and checked again in CI (`scripts/check_private.py`): files with the marker line `# PRIVATE-SITE`, names `*.private.*`, anything under a `private/` directory, files over 500 kB, and, outside `examples/` and `tests/`, every file that is not source code, Markdown, YAML, TOML, JSON, plain text or a figure under `docs/` — drawings, scans, point clouds, terrain models and spreadsheets in any format. Put the marker line at the top of every configuration of a real object. Examples use a synthetic canyon (`examples/canyon_demo`).
 
 ## Citation
 

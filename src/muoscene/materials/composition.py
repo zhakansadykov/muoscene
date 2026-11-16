@@ -11,9 +11,10 @@ Three kinds of material:
   bulk density goes to the geometry.
 
 Why a soil is a mixture and not one material at its bulk density: the density effect of
-ionisation loss is set on the scale c/ω_p ≈ 10 nm, far below the size of soil grains, so the
-grains, not the bulk, set it. The same quartz defined at 1.6 g/cm³ instead of 2.65 g/cm³ has a
-CSDA range shorter by 1.1–1.6 % per g/cm² at 1–100 GeV (`docs/notes/materials.md`).
+ionisation loss builds up over tens of nanometres (c/ω_p is 6 nm in quartz), far below the size
+of sand and silt grains, so the grains, not the bulk, set it. The same quartz defined at
+1.6 g/cm³ instead of 2.65 g/cm³ has a CSDA range shorter by 1.1–1.5 % per g/cm² at 1–100 GeV
+(`docs/notes/materials.md`).
 
 Mean excitation energy: a measured or tabulated value where one exists; otherwise the rule of
 Berger and Seltzer (1982), adopted in ICRU Report 37 — Bragg additivity with I = 19.2, 81, 82,
@@ -184,6 +185,9 @@ class Material:
     source: str = ""
 
     def __post_init__(self) -> None:
+        symbols = [s for s, _ in self.mass_fractions]
+        if len(set(symbols)) != len(symbols):
+            raise ValueError(f"{self.name}: an element is listed twice")
         object.__setattr__(self, "mass_fractions", _normalised(dict(self.mass_fractions), self.name))
         for s, _ in self.mass_fractions:
             element(s)

@@ -151,6 +151,30 @@ def test_reference_void():
     assert sea["effect_percent"] == pytest.approx(prelim["eff"], abs=0.15)
 
 
+def test_detector_threshold_lowers_the_significance():
+    """12.05 sigma at 1150 m counts every muon; above 0.2 GeV it is 11.52, above 1 GeV 9.37.
+
+    The preliminary calculation has no detector threshold; the conventions default to 1 GeV.
+    """
+    for altitude, expected in (("0m", (10.30, 8.48)), ("1150m", (11.52, 9.37))):
+        plain = CASES[f"reference_void/{altitude}/cone1"]
+        low, high = (CASES[f"reference_void/{altitude}/cone1/K>{k:g}GeV"] for k in mulder_cases.THRESHOLDS)
+        assert (low["sig"], high["sig"]) == pytest.approx(expected, abs=0.01)
+        assert high["N0"] < low["N0"] < plain["N0"]
+        assert high["effect_percent"] < low["effect_percent"] < plain["effect_percent"]
+
+
+def test_cutoff_survives_under_thin_soil():
+    """Half a metre of soil loses less energy than the air down to sea level: the cut-off stays."""
+    name = "thin_slab/1150m/0.5m/zenith{}"
+    assert CASES[name.format(0)]["cutoff_gev"] == pytest.approx(0.124, abs=0.002)
+    assert CASES[name.format(45)]["cutoff_gev"] == pytest.approx(0.162, abs=0.002)
+    for zenith in (0, 45):
+        case = CASES[name.format(zenith)]
+        assert 0 < case["cutoff_gev"] < CASES["cutoff/1150m/elev90" if zenith == 0 else "cutoff/1150m/elev45"]
+        assert case["E>1GeV"] < case["all"]
+
+
 def test_season_changes_the_flux_by_less_than_one_percent():
     summer, winter = CASES["season/midlatitude-summer"], CASES["season/midlatitude-winter"]
     assert winter["open_sky/cutoff_gev"] > summer["open_sky/cutoff_gev"]  # denser winter air

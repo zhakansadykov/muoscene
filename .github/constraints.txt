@@ -1,0 +1,5 @@
+# Versions of the backends that the frozen numbers of tests/regression were made with.
+# tests.yml installs with these; upstream.yml runs weekly without them, so that a release of
+# Mulder or Calzone that changes the physics shows there and not in an unrelated push.
+mulder==0.3.7
+calzone==1.2.2

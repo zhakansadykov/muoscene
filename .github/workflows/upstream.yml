@@ -1,0 +1,26 @@
+name: upstream
+# The newest Mulder and Calzone allowed by pyproject.toml, without the pins of constraints.txt.
+# A failure here means a release changed the frozen numbers: read tests/regression/README.md.
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upstream:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade -e ".[dev]"
+      - run: pip list
+      - run: pytest
+      - name: Discrete transport on the reference void
+        run: pytest -m validation

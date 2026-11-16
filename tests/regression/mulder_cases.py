@@ -4,7 +4,8 @@ The numbers of `docs/notes/mulder.md` (roadmap 0.1-02) in a form that a new rele
 Calzone can be checked against: the GCCLY15 reference, open-sky flux at sea level and at 1150 m,
 energy thresholds and ranges, a uniform soil slab, the altitude cut-off, atmosphere models, the
 geomagnetic field, the tables behind the transport, the path in the wall with a niche of
-`legacy_cases`, and the reference void.
+`legacy_cases`, and the reference void: without a detector threshold, as in the preliminary
+calculation, and above the thresholds of `THRESHOLDS`.
 
 Energies: K is the kinetic energy at the detector (Mulder), E = K + m the total energy (the
 preliminary calculation and the spike note). Units: m and kg/m^3 (Mulder), g/cm^2 for opacity;
@@ -16,6 +17,8 @@ script of roadmap 0.1-13.
 "All energies" above sea level starts at the altitude cut-off of the sea-level reference, where
 the differential flux has an integrable singularity, so these integrals run in ln(K - K_cut).
 A plain grid in ln K across the cut-off is wrong by up to 1.3 % even with 100 nodes per decade.
+Under soil thinner than the air between the site and sea level, in energy lost, the cut-off
+survives at the detector (`thin_slab`); under metres of soil it does not.
 
 Materials are registered with Mulder under their own names (prefix `Reg`), so that a library of
 muoscene materials can define `Loam` differently in the same process.
@@ -49,6 +52,11 @@ TABLE_ENERGIES = (0.01, 0.1, 1.0, 10.0, 100.0, 1000.0)  # K, GeV
 K_GRID = np.logspace(-3, 4, 71)  # kinetic energy at the detector for many directions, GeV
 REFERENCE_VOID = (3.0, 0.0, -3.0, 0.5)  # x, y, z, radius, m; the `reference_void` of legacy_cases
 VOID_DEPTH = 10.0
+# Detector thresholds (K, GeV) for which numbers are quoted until the energy response of the
+# emulsion is known: 1 GeV is the default of the conventions, 0.2 GeV a stack without absorber.
+THRESHOLDS = (0.2, 1.0)
+THIN_DEPTH = 0.5  # m of soil: 90 g/cm^2 against 134 g/cm^2 of air between 1150 m and sea level
+THIN_ZENITH = (0.0, 45.0)
 # Relative tolerance of the frozen numbers. Spread between platforms: 3e-9 between Linux arm64 and
 # x86-64; on macOS arm64 up to 3.1e-6 in the elastic-scattering tables and 4e-9 elsewhere. The
 # mildest change of physics tried, the pair-production model of Mulder, moves thresholds by 8e-5.
@@ -123,6 +131,22 @@ def integral_many(meter, position, directions, k=K_GRID):
         energy=np.tile(k, n),
     )
     return (np.asarray(flux).reshape(n, m) * k * np.gradient(np.log(k))).sum(axis=1)
+
+
+def integral_many_above(meter, position, directions, k_min, k_max=1e4, n=121):
+    """Integral flux above the kinetic energy `k_min` for many directions, trapezoids in ln K.
+
+    The rectangles of `integral_many` give the first node a whole step: harmless where its grid
+    starts, at 1 MeV, but 2-3 % too much for a grid that starts at a threshold.
+    """
+    k = np.logspace(np.log10(k_min), np.log10(k_max), n)
+    m = len(directions)
+    flux = meter.flux(
+        position=np.broadcast_to(position, (m * n, 3)),
+        direction=np.repeat(directions, n, axis=0),
+        energy=np.tile(k, m),
+    )
+    return np.trapezoid(np.asarray(flux).reshape(m, n) * k, np.log(k), axis=1)
 
 
 def k_above(e_total):
@@ -201,6 +225,18 @@ def slab(altitude, depth, zenith):
     define_materials()
     meter = mulder.Fluxmeter(mulder.Layer(altitude, material="RegLoam", density=SOIL))
     return integral_all(meter, **dict(SITE, altitude=altitude - depth, azimuth=0.0, elevation=90.0 - zenith))
+
+
+def thin_slab(zenith):
+    """Under THIN_DEPTH of soil at ALTITUDE: integral fluxes and the cut-off left at the detector."""
+    define_materials()
+    meter = mulder.Fluxmeter(mulder.Layer(ALTITUDE, material="RegLoam", density=SOIL))
+    state = dict(SITE, altitude=ALTITUDE - THIN_DEPTH, azimuth=0.0, elevation=90.0 - zenith)
+    return {
+        "all": integral_all(meter, **state),
+        "E>1GeV": integral(meter, k_above(1.0), **state),
+        "cutoff_gev": cutoff_of(meter, **state),
+    }
 
 
 def season(model):
@@ -334,11 +370,13 @@ def cone(axis, alpha, n_r=24, n_phi=48):
     return u.reshape(-1, 3), (edges[1] - edges[0]) * 2 * np.pi / n_phi
 
 
-def reference_void(altitude, factor=1.0):
+def reference_void(altitude, factor=1.0, k_min=None):
     """`reference_void` of legacy_cases with Mulder: counts, effect and cone significance.
 
     The cone is `factor` times the angular radius of the void; 1.0 is the best of
-    `legacy.CONE_FACTORS` for the preliminary calculation and for Mulder.
+    `legacy.CONE_FACTORS` for the preliminary calculation and for Mulder. `k_min` is a detector
+    threshold in kinetic energy; None counts every muon down to 1 MeV, as the preliminary
+    calculation does.
     """
     m = legacy.Model()
     geometry = build_scene(VOID_DEPTH, altitude=altitude, sphere=REFERENCE_VOID)
@@ -351,7 +389,8 @@ def reference_void(altitude, factor=1.0):
     counts = []
     for density in (SOIL, AIR):
         geometry.media[index].density = density
-        counts.append(float(np.sum(integral_many(meter, d, u) * u[:, 2]) * d_omega * scale))
+        flux = integral_many(meter, d, u) if k_min is None else integral_many_above(meter, d, u, k_min)
+        counts.append(float(np.sum(flux * u[:, 2]) * d_omega * scale))
     n0, n1 = counts
     sig = abs(n1 - n0) / np.sqrt(n0) / np.sqrt(1 + 1 / m.neigh)
     return {"N0": n0, "N1": n1, "effect_percent": 100 * (n1 / n0 - 1), "sig": sig}
@@ -389,6 +428,12 @@ def _cases():
             out[f"wall/{bank}/{depth:.0f}m"] = functools.partial(wall, bank, depth)
     for altitude in (0.0, ALTITUDE):
         out[f"reference_void/{altitude:.0f}m/cone1"] = functools.partial(reference_void, altitude)
+        for k_min in THRESHOLDS:
+            name = f"reference_void/{altitude:.0f}m/cone1/K>{k_min:g}GeV"
+            out[name] = functools.partial(reference_void, altitude, k_min=k_min)
+    for zenith in THIN_ZENITH:
+        name = f"thin_slab/{ALTITUDE:.0f}m/{THIN_DEPTH:g}m/zenith{zenith:g}"
+        out[name] = functools.partial(thin_slab, zenith)
     return out
 
 
@@ -419,10 +464,13 @@ def parameters():
         "range_kinetic_energies_gev": list(RANGE_ENERGIES),
         "table_kinetic_energies_gev": list(TABLE_ENERGIES),
         "slab": {"depths_m": list(DEPTHS), "zenith_deg": list(ZENITH), "soil": "RegLoam"},
+        "thin_slab": {"depth_m": THIN_DEPTH, "zenith_deg": list(THIN_ZENITH), "altitude_m": ALTITUDE},
+        "detector_thresholds_gev": list(THRESHOLDS),
         "integration": {
             "above a threshold": "trapezoids in ln K, 801 nodes up to 1e5 GeV",
             "all energies": "trapezoids in ln(K - K_cut), 5601 nodes from 1e-9 GeV; 1e-7 GeV if no cut-off",
             "many directions": "rectangles in ln K, 71 nodes from 1e-3 to 1e4 GeV",
+            "many directions above a threshold": "trapezoids in ln K, 121 nodes from it to 1e4 GeV",
         },
         "wall": "niche and directions of legacy_cases; ground 1500 x 3000 x 400 m; floor EPS below it",
         "reference_void": {
