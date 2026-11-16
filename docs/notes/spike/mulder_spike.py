@@ -3,13 +3,18 @@
 Compares Mulder 0.3.7 with the preliminary calculation used for the 2027 grant application
 (Guan et al. 2015 spectrum at sea level, energy loss a + bE, straight paths, cone significance).
 The scene is synthetic: a flat bank behind a vertical wall, a niche, a spherical void, a pier.
+The pier is invented (`PIER`): its sizes and position are those of no real structure.
 
 Run:
     pip install mulder calzone
     python docs/notes/spike/mulder_spike.py                 all experiments, about 6 minutes
     python docs/notes/spike/mulder_spike.py speed           only the speed test
-    python docs/notes/spike/mulder_spike.py --events 40000 scattering
     python docs/notes/spike/mulder_spike.py figure          needs matplotlib
+    python docs/notes/spike/mulder_spike.py --events 50000 --seed 12 scattering
+    python docs/notes/spike/mulder_spike.py --events 50000 --threshold 1 scattering
+
+The scattering numbers of docs/numbers.md are means over the seeds 11, 12 and 13 with 50 000
+states each (about 3 minutes a run for muons above 0.1 GeV at the detector).
 """
 
 import argparse
@@ -35,6 +40,13 @@ EPS = 1e-3  # m, the detector sits this much above the niche floor
 P1, P2, P3, P4, P5 = 0.102573, -0.068287, 0.958633, 0.0407253, 0.817285
 A_LEGACY, B_LEGACY, OFFSET_LEGACY = 2.2e-3, 4.0e-6, 0.1
 AREA, EXPOSURE, EFFICIENCY, NEIGHBOURS = 240.0, 60 * 86400.0, 0.9, 8
+
+# An invented pier for the speed test, the fast path and the figure: near face of the pile cap
+# 8 m from the wall, cap 6 m x 6 m x 1.5 m, 3 x 3 piles of 0.8 m diameter and 8 m length at a
+# pitch of 2.2 m; seen from a niche 20 m below the brow, with a 2 m void in front of it.
+PIER = (8.0, 6.0, 1.5, 0.4, 8.0, 3, 2.2)
+PIER_NICHE = 20.0
+PIER_VOID = (6.0, 0.0, -6.0, 1.0)
 
 
 def define_materials() -> None:
@@ -294,7 +306,7 @@ def exp_wall(args):
         ("flat brow, boxes", None, {}),
         ("rising brow, mesh", mesh, {"rise": rise, "x_rise": x_rise}),
     ):
-        for depth in (10.0, 25.0):
+        for depth in (10.0, PIER_NICHE):
             geometry = build_scene(depth, brow_mesh=brow)
             start = time.perf_counter()
             position = np.broadcast_to(detector(depth), u.shape)
@@ -385,6 +397,7 @@ def exp_scattering(args):
     print(
         "\n## E6 scattering: excess of counts inside a cone around the 1 m void, continuous against discrete"
     )
+    print(f"muons above {args.threshold:g} GeV at the detector, seed {args.seed}")
     centre, radius = np.array(VOID[:3]), VOID[3]
     d = detector(DEPTH)
     axis = (centre - d) / np.linalg.norm(centre - d)
@@ -397,8 +410,8 @@ def exp_scattering(args):
     e1 /= np.linalg.norm(e1)
     e2 = np.cross(axis, e1)
     for k in (1.0, 1.7):
-        rng = np.random.default_rng(11)
-        energy = np.exp(rng.uniform(np.log(1e-1), np.log(1e3), n))
+        rng = np.random.default_rng(args.seed)
+        energy = np.exp(rng.uniform(np.log(args.threshold), np.log(1e3), n))
         cb = rng.uniform(np.cos(k * angular), 1.0, n)
         sb, ph = np.sqrt(1 - cb**2), rng.uniform(0, 2 * np.pi, n)
         u = cb[:, None] * axis + (sb * np.cos(ph))[:, None] * e1 + (sb * np.sin(ph))[:, None] * e2
@@ -408,7 +421,7 @@ def exp_scattering(args):
             values = []
             for density in (SOIL, 1.2):
                 geometry.media[index].density = density
-                meter = mulder.Fluxmeter(geometry=geometry, mode=mode, seed=5)
+                meter = mulder.Fluxmeter(geometry=geometry, mode=mode, seed=args.seed - 6)
                 start = time.perf_counter()
                 extra = {"events": 1} if mode == "discrete" else {}
                 flux = np.asarray(meter.flux(position=position, direction=u, energy=energy, **extra))
@@ -473,14 +486,13 @@ def exp_speed(args):
         f"{platform.platform()}, Python {platform.python_version()},"
         f" mulder {mulder.config.VERSION}, calzone {calzone.VERSION}"
     )
-    pier = (10.0, 7.0, 2.0, 0.5, 10.0, 3, 2.5)
     start = time.perf_counter()
-    geometry = build_scene(25.0, sphere=(8.0, 0.0, -6.0, 1.0), pier=pier)
+    geometry = build_scene(PIER_NICHE, sphere=PIER_VOID, pier=PIER)
     print(
         f"scene with a pier: {len(geometry.media)} media,"
         f" built in {1e3 * (time.perf_counter() - start):.0f} ms"
     )
-    d = detector(25.0)
+    d = detector(PIER_NICHE)
     u = slope_grid(401, 1.2)
     position = np.broadcast_to(d, u.shape)
     geometry.scan(position=position[:100], direction=u[:100], output="grammage")  # warm-up
@@ -531,8 +543,8 @@ def exp_hybrid(args):
         "\n## E12 fast path (opacity from scan, flux from a table built by Mulder) against direct Mulder flux"
     )
     k = np.logspace(0.0, 4.0, 61)  # kinetic energy above 1 GeV, above the altitude cut-off
-    depth = 25.0
-    geometry = build_scene(depth, sphere=(8.0, 0.0, -6.0, 1.0), pier=(10.0, 7.0, 2.0, 0.5, 10.0, 3, 2.5))
+    depth = PIER_NICHE
+    geometry = build_scene(depth, sphere=PIER_VOID, pier=PIER)
     geometry.media[medium_index(geometry, "Anomaly")].density = 1.2
     d = detector(depth)
     altitude = ALTITUDE + d[2]
@@ -627,16 +639,16 @@ def exp_figure(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    geometry = build_scene(25.0, sphere=(8.0, 0.0, -6.0, 1.0), pier=(10.0, 7.0, 2.0, 0.5, 10.0, 3, 2.5))
+    geometry = build_scene(PIER_NICHE, sphere=PIER_VOID, pier=PIER)
     n, t_max = 401, 1.2
     u = slope_grid(n, t_max)
     grammage = np.asarray(
-        geometry.scan(position=np.broadcast_to(detector(25.0), u.shape), direction=u, output="grammage")
+        geometry.scan(position=np.broadcast_to(detector(PIER_NICHE), u.shape), direction=u, output="grammage")
     )
     concrete = [i for i, m in enumerate(geometry.media) if m.material == "Concrete"]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8), dpi=110)
     panels = (
-        ("Opacity from a niche 25 m below the brow, g/cm²", grammage.sum(axis=1), "viridis"),
+        (f"Opacity from a niche {PIER_NICHE:.0f} m below the brow, g/cm²", grammage.sum(axis=1), "viridis"),
         ("Concrete only: pile cap and nine piles, g/cm²", grammage[:, concrete].sum(axis=1), "magma"),
     )
     for ax, (title, values, cmap) in zip(axes, panels, strict=True):
@@ -691,6 +703,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("experiments", nargs="*", help="any of: " + ", ".join(EXPERIMENTS))
     parser.add_argument("--events", type=int, default=20000, help="Monte Carlo states for the discrete mode")
+    parser.add_argument("--seed", type=int, default=11, help="seed of the scattering experiment")
+    parser.add_argument(
+        "--threshold", type=float, default=0.1, help="lowest kinetic energy at the detector in it, GeV"
+    )
     args = parser.parse_args()
     unknown = set(args.experiments) - set(EXPERIMENTS)
     if unknown:
