@@ -7,6 +7,8 @@ geomagnetic field, the tables behind the transport, the path in the wall with a 
 `legacy_cases`, and the reference void: without a detector threshold, as in the preliminary
 calculation, and above the thresholds of `THRESHOLDS`. For the flux tables (roadmap 0.1-05):
 open sky at a site below sea level, and the flux above those thresholds under a soil slab.
+For the geometry (roadmap 0.1-06): what the air of a local geometry does to the reference void
+and to the open sky, against its height above the brow and its density (`scene_air`).
 
 Energies: K is the kinetic energy at the detector (Mulder), E = K + m the total energy (the
 preliminary calculation and the spike note). Units: m and kg/m^3 (Mulder), g/cm^2 for opacity;
@@ -60,6 +62,8 @@ THIN_DEPTH = 0.5  # m of soil: 90 g/cm^2 against 134 g/cm^2 of air between 1150 
 THIN_ZENITH = (0.0, 45.0)
 BELOW = -430.0  # m, a site below sea level: the reference is carried down through more air
 THRESHOLD_DEPTHS = (0.5, 2.0, 20.0)  # m of soil over a detector with a threshold of THRESHOLDS
+AIR_TOPS = (1.0, 20.0, 1000.0)  # m of scene air above the brow
+AIR_ELEVATION = 45.0  # degrees: the open-sky line of sight of `scene_air`, towards the canyon
 # Relative tolerance of the frozen numbers. Spread between platforms: 3e-9 between Linux arm64 and
 # x86-64; on macOS arm64 up to 3.1e-6 in the elastic-scattering tables and 4e-9 elsewhere. The
 # mildest change of physics tried, the pair-production model of Mulder, moves thresholds by 8e-5.
@@ -321,14 +325,16 @@ def detector(depth):
     return np.array([legacy.Niche().xd, 0.0, -depth])
 
 
-def build_scene(depth, bank="flat", altitude=ALTITUDE, sphere=None):
+def build_scene(depth, bank="flat", altitude=ALTITUDE, sphere=None, top=None, air_density=None):
     """Ground behind a vertical wall at x = 0 with a niche; brow flat (boxes) or rising (OBJ mesh).
 
     The ground reaches 1500 m into the massif and 1500 m along the wall each way, so that the
     grazing directions of `legacy_cases.direction_set` stay inside it. The air of the scene ends
     20 m above the brow: Mulder gives it sea-level density, and a thicker layer of it lowers the
     flux at altitude (spike, E12). The niche is that of the preliminary calculation with its floor
-    EPS below the detector. sphere = (x, y, z, radius).
+    EPS below the detector. sphere = (x, y, z, radius). For `scene_air`: `top` is the height of
+    the scene air above the brow, m, in place of 20 m, and `air_density` its density, kg/m^3, in
+    place of the default of Mulder.
     """
     define_materials()
     niche = legacy.Niche()
@@ -356,12 +362,18 @@ def build_scene(depth, bank="flat", altitude=ALTITUDE, sphere=None):
             "material": "G4_AIR",
         }
         world = {"box": list(WORLD * CM), "position": [0.0, 0.0, WORLD_Z * CM], "material": "G4_AIR"}
+        if top is not None:
+            height = GROUND[2] + top
+            world["box"] = [WORLD[0] * CM, WORLD[1] * CM, height * CM]
+            world["position"] = [0.0, 0.0, (top - height / 2) * CM]
         world |= {"Ground": ground, "Niche": hole}
         frame = mulder.LocalFrame(altitude=altitude, **SITE)
         geometry = mulder.LocalGeometry(calzone.Geometry({"Environment": world}), frame=frame)
     for medium in geometry.media:
         if medium.description.split(".")[-1] in ("Environment", "Niche"):
             medium.material = "Air"
+            if air_density is not None:
+                medium.density = air_density
         else:
             medium.material, medium.density = "RegLoam", SOIL
     return geometry
@@ -393,16 +405,16 @@ def cone(axis, alpha, n_r=24, n_phi=48):
     return u.reshape(-1, 3), (edges[1] - edges[0]) * 2 * np.pi / n_phi
 
 
-def reference_void(altitude, factor=1.0, k_min=None):
+def reference_void(altitude, factor=1.0, k_min=None, **scene):
     """`reference_void` of legacy_cases with Mulder: counts, effect and cone significance.
 
     The cone is `factor` times the angular radius of the void; 1.0 is the best of
     `legacy.CONE_FACTORS` for the preliminary calculation and for Mulder. `k_min` is a detector
     threshold in kinetic energy; None counts every muon down to 1 MeV, as the preliminary
-    calculation does.
+    calculation does. `scene` goes to `build_scene` (the air of `scene_air`).
     """
     m = legacy.Model()
-    geometry = build_scene(VOID_DEPTH, altitude=altitude, sphere=REFERENCE_VOID)
+    geometry = build_scene(VOID_DEPTH, altitude=altitude, sphere=REFERENCE_VOID, **scene)
     index = medium_index(geometry, "Anomaly")
     meter = mulder.Fluxmeter(geometry=geometry)
     d, centre, radius = detector(VOID_DEPTH), np.array(REFERENCE_VOID[:3]), REFERENCE_VOID[3]
@@ -417,6 +429,42 @@ def reference_void(altitude, factor=1.0, k_min=None):
     n0, n1 = counts
     sig = abs(n1 - n0) / np.sqrt(n0) / np.sqrt(1 + 1 / m.neigh)
     return {"N0": n0, "N1": n1, "effect_percent": 100 * (n1 / n0 - 1), "sig": sig}
+
+
+def site_air_density():
+    """Density of the US standard atmosphere of Mulder at ALTITUDE, kg/m^3."""
+    return float(mulder.Atmosphere("us-standard").density(ALTITUDE))
+
+
+def scene_air(top, site):
+    """The air of a local geometry: `top` metres of it above the brow, at one density.
+
+    Mulder gives the air of a local geometry a single density, by default that of its `Air`
+    (1.205 kg/m^3, sea level), and follows its atmosphere model only above the box. `site`
+    takes the density of that model at ALTITUDE instead. Returned: the reference void above
+    1 GeV (counts without the void and its effect) and the open-sky flux above 1 GeV along a
+    line of sight that leaves the niche of the void towards the canyon at AIR_ELEVATION.
+    """
+    density = site_air_density() if site else None
+    k_min = THRESHOLDS[-1]
+    void = reference_void(ALTITUDE, k_min=k_min, top=top, air_density=density)
+    geometry = build_scene(VOID_DEPTH, top=top, air_density=density)
+    elevation = np.radians(AIR_ELEVATION)
+    u = np.array([[-np.cos(elevation), 0.0, np.sin(elevation)]])
+    meter = mulder.Fluxmeter(geometry=geometry)
+    sky = integral_many_above(meter, detector(VOID_DEPTH), u, k_min, k_max=1e5, n=801)
+    return {
+        "air_density_kg_m3": default_density("Air") if density is None else density,
+        "void/N0": void["N0"],
+        "void/effect_percent": void["effect_percent"],
+        "open_sky/K>1GeV": float(sky[0]),
+    }
+
+
+def scene_air_atmosphere():
+    """The open sky of `scene_air` without a local geometry: the atmosphere of Mulder alone."""
+    state = dict(SITE, altitude=ALTITUDE - VOID_DEPTH, azimuth=270.0, elevation=AIR_ELEVATION)
+    return {"open_sky/K>1GeV": integral(mulder.Fluxmeter(), THRESHOLDS[-1], **state)}
 
 
 # ------------------------------------------------------------------ registry
@@ -462,6 +510,11 @@ def _cases():
         for zenith in THIN_ZENITH:
             name = f"threshold_slab/{ALTITUDE:.0f}m/{depth:g}m/zenith{zenith:g}"
             out[name] = functools.partial(threshold_slab, depth, zenith)
+    for top in AIR_TOPS:
+        for site in (False, True) if top > AIR_TOPS[0] else (True,):
+            name = f"scene_air/{ALTITUDE:.0f}m/top{top:g}m/{'site' if site else 'default'}"
+            out[name] = functools.partial(scene_air, top, site)
+    out[f"scene_air/{ALTITUDE:.0f}m/atmosphere"] = scene_air_atmosphere
     return out
 
 
@@ -501,6 +554,15 @@ def parameters():
             "soil": "RegLoam",
         },
         "detector_thresholds_gev": list(THRESHOLDS),
+        "scene_air": {
+            "tops_m": list(AIR_TOPS),
+            "default": "the Air of Mulder at its own density",
+            "site": "the same material at the density of the US standard atmosphere at 1150 m",
+            "void": "reference_void above 1 GeV",
+            "open_sky": "above 1 GeV from the detector of the reference void towards the canyon, "
+            "azimuth 270 and elevation 45 degrees; trapezoids in ln K, 801 nodes up to 1e5 GeV",
+            "atmosphere": "the same line of sight without a local geometry",
+        },
         "integration": {
             "above a threshold": "trapezoids in ln K, 801 nodes up to 1e5 GeV",
             "all energies": "trapezoids in ln(K - K_cut), 5601 nodes from 1e-9 GeV; 1e-7 GeV if no cut-off",

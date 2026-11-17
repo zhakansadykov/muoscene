@@ -77,7 +77,8 @@ table.integral(EnergyResponse.threshold(0.2), 1.0, 0.0)  # ValueError: the cut-o
 ## Run on another machine
 
 ```bash
-pytest tests/unit/test_flux_tables.py --durations=3    # the setup of the first test is one table: 2 s
+# python -m: these tests import tests.regression, which a bare pytest on one file does not find
+python -m pytest tests/unit/test_flux_tables.py --durations=3    # the setup of the first test is one table: 2 s
 python -c "
 import time, numpy as np
 from muoscene import materials as M

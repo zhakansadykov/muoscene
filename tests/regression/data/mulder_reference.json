@@ -296,6 +296,39 @@
    "effect_percent": 5.714419277523852,
    "sig": 9.365987917810502
   },
+  "scene_air/1150m/atmosphere": {
+   "open_sky/K>1GeV": 38.225863923341876
+  },
+  "scene_air/1150m/top1000m/default": {
+   "air_density_kg_m3": 1.205,
+   "open_sky/K>1GeV": 37.63276761108117,
+   "void/N0": 29950.426128733496,
+   "void/effect_percent": 5.692395710288212
+  },
+  "scene_air/1150m/top1000m/site": {
+   "air_density_kg_m3": 1.099748475277168,
+   "open_sky/K>1GeV": 38.01622990366086,
+   "void/N0": 30131.16794174227,
+   "void/effect_percent": 5.707151294798551
+  },
+  "scene_air/1150m/top1m/site": {
+   "air_density_kg_m3": 1.099748475277168,
+   "open_sky/K>1GeV": 38.22576386342994,
+   "void/N0": 30225.198118760694,
+   "void/effect_percent": 5.714721634739894
+  },
+  "scene_air/1150m/top20m/default": {
+   "air_density_kg_m3": 1.205,
+   "open_sky/K>1GeV": 38.214414085764076,
+   "void/N0": 30221.464394294733,
+   "void/effect_percent": 5.714419277523852
+  },
+  "scene_air/1150m/top20m/site": {
+   "air_density_kg_m3": 1.099748475277168,
+   "open_sky/K>1GeV": 38.22546906411506,
+   "void/N0": 30225.13726967109,
+   "void/effect_percent": 5.7147130659168655
+  },
   "season/midlatitude-summer": {
    "open_sky/E>1GeV": 72.3604081908715,
    "open_sky/all": 106.18715203893052,
@@ -1215,6 +1248,18 @@
    "niche_depth_m": 10.0,
    "radius_m": 0.5,
    "void_density_kg_m3": 1.2
+  },
+  "scene_air": {
+   "atmosphere": "the same line of sight without a local geometry",
+   "default": "the Air of Mulder at its own density",
+   "open_sky": "above 1 GeV from the detector of the reference void towards the canyon, azimuth 270 and elevation 45 degrees; trapezoids in ln K, 801 nodes up to 1e5 GeV",
+   "site": "the same material at the density of the US standard atmosphere at 1150 m",
+   "tops_m": [
+    1.0,
+    20.0,
+    1000.0
+   ],
+   "void": "reference_void above 1 GeV"
   },
   "site": {
    "altitudes_m": [

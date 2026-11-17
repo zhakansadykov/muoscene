@@ -1,6 +1,6 @@
 # Headline numbers and their conditions
 
-The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`. Last update: 16 November 2026, Mulder 0.3.7, Calzone 1.2.2.
+The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py` and, in the geometry section, of `tests/unit/test_geometry_scene.py`. Last update: 17 November 2026, Mulder 0.3.7, Calzone 1.2.2.
 
 ## The reference void
 
@@ -68,6 +68,22 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 | where a threshold of 1 GeV holds in the open sky | from 15.7° of elevation (sine 0.27) | the cut-off is 0.98 GeV there and 1.02 GeV at 15.1°; a table starts 10 MeV above its cut-off | `test_the_table_holds_only_energies_above_the_cutoff` |
 | opacity under which no cut-off is left | 138 g/cm² by the vertical, 569 g/cm² at 14.5° | loam of the spike | the same |
 | muons above the top of a table, 10 TeV at the detector | 3·10⁻⁶ under 3·10⁴ g/cm², 2·10⁻⁸ in the open sky | of the muons above 1 GeV, vertical | `test_muons_above_the_table_do_not_matter` |
+
+## Geometry
+
+`muoscene.geometry` (`docs/notes/geometry.md`). Paths are lengths in metres along straight lines of sight; the frozen cases `scene_air/1150m/…` are continuous transport above 1 GeV at the detector.
+
+| Quantity | Value | Conditions | Test or frozen case |
+|---|---|---|---|
+| path in the ground behind the wall with a niche, a scene of muoscene against the frozen one | within 1.1·10⁻¹³ m | flat and rising brow, niches 12 and 22 m below it, the 175 directions of `legacy_cases` | `test_wall_paths_equal_the_frozen_ones` |
+| layers against the whole ground | sum within 1.1·10⁻¹³ m | one to three layer tops, also through the niches | `test_layers_add_up_to_the_ground` |
+| chords of a box, of cylinders and of a sphere against analytic ones | within 1·10⁻¹⁴, 3·10⁻¹² and 4·10⁻¹³ m | cap, nine piles and void of the invented pier, 40 401 directions; with two layer tops every pile is in three parts | `test_chords_of_sphere_cylinder_and_box` |
+| scan speed | 4.0·10⁵ and 2.7·10⁵ directions/s on Linux, 5.9·10⁴ and 5.4·10⁴ on macOS | the invented pier, 14 and 34 media, checks of `Scene.scan` included; a Linux VM with 4 cores and macOS itself (Python 3.14) on the same MacBook Air, arm64 | `test_scan_speed_on_the_pier` (asserts 5·10⁴; marked `validation`); on macOS the command of `docs/notes/geometry.md`, 17 November 2026 |
+| 1000 m of scene air above the brow at Mulder's default density, 1.205 kg/m³ | counts of the reference void −0.91 %, open sky at 45° −1.55 % | 1150 m; against 1 m of air at the density of the site, 1.0997 kg/m³ | `scene_air/1150m/top1000m/default` |
+| the same at the density of the site | −0.31 % and −0.55 % | a uniform kilometre is heavier than the real air above the site | `scene_air/1150m/top1000m/site` |
+| 20 m of air at the default density, the scene of the frozen reference void | −0.012 % and −0.030 % | | `scene_air/1150m/top20m/default` |
+| the air of a scene: 1 m above the highest body, at the density of the site | open sky within 2.6·10⁻⁶ of Mulder without a local geometry | 2.5·10⁻⁷ with the air of the library | `scene_air/1150m/atmosphere`, `test_open_sky_through_the_scene_air_is_that_of_the_atmosphere` |
+| a void given to Mulder as a density of zero | flux 2.1 % below that through soil, instead of 8.7 % above | along the axis of the reference void; Mulder takes the density of the material, so a void gets 10⁻⁹ kg/m³ | `test_a_void_is_empty_for_mulder_too` |
 
 ## Accuracy of the base
 
