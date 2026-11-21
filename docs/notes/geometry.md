@@ -17,7 +17,7 @@ A body takes a `Material`, a `Mixture` or a `Soil` of `muoscene.materials`. A so
 
 The profile is a list of points (x, z) with x not decreasing; two points with one x are a vertical wall. Overhangs cannot be given — a niche is a cut. The bottom of a ground, its two faces across y and the vertical faces under the first and the last point of its profile are limits of the model, not surfaces of the object, so a canyon wall is a segment of the profile: the bank of the frozen cases is `[(0, -400), (0, 0), (1500, 0)]` over a bottom at −400 m.
 
-Version 0.1 has no rotations: boxes follow the axes, cylinders are vertical, the ground runs along y. A scene whose wall does not run north–south is described in its own axes, and the frame is turned in roadmap 0.1-07 (decided on 17 November 2026).
+Version 0.1 has no rotations: boxes follow the axes, cylinders are vertical, the ground runs along y. A scene whose wall does not run north–south is described in its own axes, and the frame is turned in roadmap 0.1-07 (decided on 17 November 2026). Since that task `Scene` takes `azimuth_deg`, the azimuth of its +y axis from true north: it changes no scan and only tells Mulder where north is, for the geomagnetic field; points and directions in ENU go through `muoscene.site.Site.scan` (`docs/notes/detectors.md`).
 
 ## How it is built
 

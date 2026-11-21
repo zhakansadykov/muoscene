@@ -1,6 +1,6 @@
 # Headline numbers and their conditions
 
-The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py` and, in the geometry section, of `tests/unit/test_geometry_scene.py`. Last update: 17 November 2026, Mulder 0.3.7, Calzone 1.2.2.
+The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`, in the geometry section of `tests/unit/test_geometry_scene.py`, and in the section on the site and the detectors of the files named there. Last update: 21 November 2026, Mulder 0.3.7, Calzone 1.2.2.
 
 ## The reference void
 
@@ -84,6 +84,26 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 | 20 m of air at the default density, the scene of the frozen reference void | −0.012 % and −0.030 % | | `scene_air/1150m/top20m/default` |
 | the air of a scene: 1 m above the highest body, at the density of the site | open sky within 2.6·10⁻⁶ of Mulder without a local geometry | 2.5·10⁻⁷ with the air of the library | `scene_air/1150m/atmosphere`, `test_open_sky_through_the_scene_air_is_that_of_the_atmosphere` |
 | a void given to Mulder as a density of zero | flux 2.1 % below that through soil, instead of 8.7 % above | along the axis of the reference void; Mulder takes the density of the material, so a void gets 10⁻⁹ kg/m³ | `test_a_void_is_empty_for_mulder_too` |
+
+## Site and detectors
+
+`muoscene.site` and `muoscene.detectors` (`docs/notes/detectors.md`). Tests are those of `tests/unit/test_site_frames.py`, `test_detectors_pose.py`, `test_detectors_grid.py`, `test_detectors_emulsion.py` and `tests/regression/test_legacy_track_density.py`. Track densities are muon tracks per cm² of film in 60 days, continuous transport, straight paths, both sides of the film; they hold no soft component and no muons below the threshold.
+
+| Quantity | Value | Conditions | Test or frozen case |
+|---|---|---|---|
+| sum of the bin solid angles against 2π (1 − cos θ_max) | within 2·10⁻¹⁵ | default grid: slopes up to 1, 40 × 40 bins of 0.05, 148 of them cut by the acceptance circle; exact part of every bin within the circle | `test_the_default_grid_adds_up_to_the_cone` |
+| the same with edge bins taken by the share of sub-samples inside the circle | +3.4·10⁻³, −3.5·10⁻⁴, +4.3·10⁻⁵, +2.0·10⁻⁴ | 1, 2, 4, 8 sub-samples per side; the alternative that was not taken | `test_the_share_of_sub_samples_inside_the_circle_is_not_exact` |
+| pose round trips | 6·10⁻¹⁴ degrees; 3·10⁻¹⁶ | angles → axes → angles for tilts from 0.01°; direction → slopes → direction | `test_angles_to_axes_to_angles`, `test_direction_to_slopes_to_direction` |
+| east against west with the frame of a scene turned by 90° | +0.25 % | open sky above 1 GeV at 45°, 1150 m, field of 15 October 2028; a scene that kept its y axis for north would give north and south | `test_a_scene_of_a_site_tells_mulder_where_north_is` |
+| track density of the preliminary calculation, grid sum against the frozen Monte Carlo number | +0.01 to +0.03 % horizontal films, −0.06 to −0.10 % tilted | sea level, every muon above a + bE (`LegacyTable`), niches 12 and 22 m, flat and rising brow, tilts of 0° and 20°; Monte Carlo σ of the frozen numbers 0.28–0.39 % and 0.21–0.22 % (seeds 100–139) | `test_horizontal_films`, `test_tilted_films`, `test_open_sky`; `legacy_reference.json`, `track_density/…`, `track_density_tilted/…` |
+| the same on the directions of the preliminary calculation themselves | 4·10⁻¹⁶; −3.0·10⁻⁶ and −3.5·10⁻⁶ under the rising brow through a scene | 400 000 directions, seed 5; the preliminary calculation takes the rising brow as flat towards the canyon and along the wall, up to 0.33 m of path | `test_the_same_integrand_on_the_directions_of_the_preliminary_calculation` |
+| the back side of a tilted film | 0.48 % of the track density at a tilt of 20° | conditions of the preliminary calculation, niche 22 m; lines of sight within tan 10 of the normal, cos θ above 0.05 | `test_the_back_side_of_a_tilted_film` |
+| track density in the open sky above 1 GeV | 60 039 at 1150 m, 49 843 at sea level | horizontal film, elevations above 16°; kinetic energy at the detector | `test_open_sky_below_the_cutoff_is_refused` |
+| the same above 0.2 GeV | 64 431 at sea level; refused at 1150 m | the sea-level reference has a cut-off of 0.28 GeV by the vertical at 1150 m | the same |
+| track density in a niche above 1 GeV | 34 758 at 12 m, 30 346 at 22 m below the brow | horizontal film on the floor of the niche of `legacy_cases`, flat bank of loam of 1.8 g/cm³ at 1150 m, elevations above 16°; table at the altitude of the detector; 2.2·10⁵ lines of sight, converged to 3·10⁻⁵ | `test_track_density_in_a_niche_at_1150_m` |
+| of it, from the side of the canyon | 26 244 (76 %) and 26 104 (86 %) | open sky but for the lip of the niche | the same |
+| track density in a niche above 0.2 GeV, side of the ground only | 10 081 at 12 m, 4794 at 22 m; 8514 and 4242 above 1 GeV | the side of the canyon has no flux above 0.2 GeV with a sea-level reference: the whole is refused until roadmap 0.1-05b | the same |
+| table and scene against Mulder through the scene, track density | −0.04 and −0.06 % on the side of the ground, +0.03 % on the side of the canyon | the 1152 lines of sight of the frozen cases, above 0.2 and 1 GeV | `test_track_density_in_a_niche_against_mulder`; `track_density/1150m/12m`, `…/22m` |
 
 ## Accuracy of the base
 

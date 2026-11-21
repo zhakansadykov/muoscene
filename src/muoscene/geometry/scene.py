@@ -66,11 +66,17 @@ class Scene:
     latitude_deg, longitude_deg
                     of the origin, degrees; both or none (then those of Mulder, 0 and 0). They
                     do not enter a scan; Mulder uses them for the geomagnetic field
+    azimuth_deg     azimuth of the +y axis of the scene from true north, clockwise, degrees;
+                    0 when the axes of the scene are east, north, up. It does not enter a scan
+                    either, and nothing is rotated here: it only tells Mulder where north is,
+                    for the geomagnetic field. Points and directions in ENU go through
+                    `muoscene.site.Site.scan`, which turns them into the axes of the scene
     margin_m        the box of the scene is this much larger than its bodies on every side, m;
                     a detector must lie inside the box
     air             material of the air of the scene and of its cuts
 
-    Attributes: `bodies`, `altitude_m`, `atmosphere`, `air_density_g_cm3`, `lo_m` and `hi_m`
+    Attributes: `bodies`, `altitude_m`, `latitude_deg`, `longitude_deg`, `azimuth_deg`,
+    `atmosphere`, `air_density_g_cm3`, `lo_m` and `hi_m`
     (corners of the box, m), `hosts` (the host of every anomaly), `calzone` (the
     `calzone.Geometry`; its materials are placeholders) and `mulder` (the `mulder.LocalGeometry`
     with the materials and densities of the scene, for direct transport).
@@ -84,6 +90,7 @@ class Scene:
         atmosphere: str = "us-standard",
         latitude_deg: float | None = None,
         longitude_deg: float | None = None,
+        azimuth_deg: float = 0.0,
         margin_m: float = 1.0,
         air: Material | Mixture = AIR,
     ) -> None:
@@ -95,6 +102,11 @@ class Scene:
             raise ValueError("give both latitude_deg and longitude_deg, or neither")
         if latitude_deg is not None and not (abs(latitude_deg) <= 90 and abs(longitude_deg) <= 360):
             raise ValueError("latitude_deg or longitude_deg is out of range")
+        if not math.isfinite(azimuth_deg):
+            raise ValueError("azimuth_deg must be finite")
+        self.latitude_deg = None if latitude_deg is None else float(latitude_deg)
+        self.longitude_deg = None if longitude_deg is None else float(longitude_deg)
+        self.azimuth_deg = float(azimuth_deg) % 360.0
         if not isinstance(air, Material | Mixture):
             raise TypeError("the air of a scene is a Material or a Mixture")
         assembly = assemble(self.bodies, margin_m)
@@ -112,6 +124,9 @@ class Scene:
             if latitude_deg is None
             else {"latitude": float(latitude_deg), "longitude": float(longitude_deg)}
         )
+        if self.azimuth_deg:
+            # the local frame of Mulder has its y axis at this azimuth from geographic north
+            where["azimuth"] = self.azimuth_deg
         frame = mulder.LocalFrame(altitude=self.altitude_m, **where)
         self.mulder = mulder.LocalGeometry(self.calzone, frame=frame)
         by_volume = {volume.name: volume.body for volume in self._volumes}

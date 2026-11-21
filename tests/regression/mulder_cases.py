@@ -9,6 +9,11 @@ calculation, and above the thresholds of `THRESHOLDS`. For the flux tables (road
 open sky at a site below sea level, and the flux above those thresholds under a soil slab.
 For the geometry (roadmap 0.1-06): what the air of a local geometry does to the reference void
 and to the open sky, against its height above the brow and its density (`scene_air`).
+For the detectors (roadmap 0.1-07): the density of muon tracks on a horizontal film in a niche
+of the wall, above the detector thresholds, the side of the ground and the side of the canyon
+apart (`track_density`). The open-sky flux of Mulder through a local geometry depends at 6e-14 on
+whether a fluxmeter without a local geometry ran earlier in the process: the frozen numbers are
+those of the order of `CASES`, in which `make_mulder_reference` computes them.
 
 Energies: K is the kinetic energy at the detector (Mulder), E = K + m the total energy (the
 preliminary calculation and the spike note). Units: m and kg/m^3 (Mulder), g/cm^2 for opacity;
@@ -64,6 +69,10 @@ BELOW = -430.0  # m, a site below sea level: the reference is carried down throu
 THRESHOLD_DEPTHS = (0.5, 2.0, 20.0)  # m of soil over a detector with a threshold of THRESHOLDS
 AIR_TOPS = (1.0, 20.0, 1000.0)  # m of scene air above the brow
 AIR_ELEVATION = 45.0  # degrees: the open-sky line of sight of `scene_air`, towards the canyon
+# `track_density`: lines of sight from this elevation up. At ALTITUDE a threshold of 1 GeV is above
+# the cut-off of the sea-level reference from 15.7 degrees (`docs/notes/flux.md`).
+TRACK_ELEVATION = 16.0  # degrees
+TRACK_GRID = (24, 48)  # directions in the sine of elevation and in azimuth
 # Relative tolerance of the frozen numbers. Spread between platforms: 3e-9 between Linux arm64 and
 # x86-64; on macOS arm64 up to 3.1e-6 in the elastic-scattering tables and 4e-9 elsewhere. The
 # mildest change of physics tried, the pair-production model of Mulder, moves thresholds by 8e-5.
@@ -467,6 +476,42 @@ def scene_air_atmosphere():
     return {"open_sky/K>1GeV": integral(mulder.Fluxmeter(), THRESHOLDS[-1], **state)}
 
 
+def sky_grid(elevation=TRACK_ELEVATION, n_sine=TRACK_GRID[0], n_azimuth=TRACK_GRID[1]):
+    """Directions above `elevation` (degrees), uniform in the sine of elevation and in azimuth.
+
+    Returned with the solid angle of each. No direction lies in the plane of the wall.
+    """
+    edges = np.linspace(np.sin(np.radians(elevation)), 1.0, n_sine + 1)
+    sine, phi = 0.5 * (edges[1:] + edges[:-1]), (np.arange(n_azimuth) + 0.5) * 2 * np.pi / n_azimuth
+    s, p = np.meshgrid(sine, phi, indexing="ij")
+    c = np.sqrt(1 - s**2)
+    u = np.stack([c * np.cos(p), c * np.sin(p), s], axis=-1).reshape(-1, 3)
+    return u, (edges[1] - edges[0]) * 2 * np.pi / n_azimuth
+
+
+def track_density(depth):
+    """Muon tracks per cm^2 of a horizontal film in 60 days, in the niche `depth` below a flat brow.
+
+    The site is at ALTITUDE; lines of sight are those of `sky_grid`, from TRACK_ELEVATION up.
+    The side of the ground (x > 0) is given above both detector thresholds of THRESHOLDS: no
+    cut-off is left under that much soil. The side of the canyon (x < 0) is open sky but for the
+    lip of the niche, and is given above 1 GeV only: 0.2 GeV is below the cut-off of the
+    sea-level reference there.
+    """
+    geometry = build_scene(depth)
+    meter = mulder.Fluxmeter(geometry=geometry)
+    u, d_omega = sky_grid()
+    ground = u[:, 0] > 0
+    scale = d_omega * legacy_cases.T60 * 1e-4
+    out = {}
+    for k_min in THRESHOLDS:
+        flux = integral_many_above(meter, detector(depth), u[ground], k_min)
+        out[f"ground/K>{k_min:g}GeV"] = float(np.sum(flux * u[ground, 2]) * scale)
+    flux = integral_many_above(meter, detector(depth), u[~ground], THRESHOLDS[-1])
+    out[f"canyon/K>{THRESHOLDS[-1]:g}GeV"] = float(np.sum(flux * u[~ground, 2]) * scale)
+    return out
+
+
 # ------------------------------------------------------------------ registry
 
 
@@ -515,6 +560,8 @@ def _cases():
             name = f"scene_air/{ALTITUDE:.0f}m/top{top:g}m/{'site' if site else 'default'}"
             out[name] = functools.partial(scene_air, top, site)
     out[f"scene_air/{ALTITUDE:.0f}m/atmosphere"] = scene_air_atmosphere
+    for depth in (legacy_cases.UPPER, legacy_cases.LOWER):
+        out[f"track_density/{ALTITUDE:.0f}m/{depth:.0f}m"] = functools.partial(track_density, depth)
     return out
 
 
@@ -578,4 +625,12 @@ def parameters():
             "cone": "1.0 x the angular radius, 24 x 48 directions uniform in cosine and azimuth",
         },
         "eps_m": EPS,
+        "track_density": {
+            "film": "horizontal, on the floor of the niche of legacy_cases, flat bank; tracks per cm^2",
+            "exposure_days": 60,
+            "elevation_min_deg": TRACK_ELEVATION,
+            "directions": f"{TRACK_GRID[0]} x {TRACK_GRID[1]}, uniform in the sine of elevation and in "
+            "azimuth; ground: x > 0, canyon: x < 0",
+            "integration": "trapezoids in ln K, 121 nodes from the threshold to 1e4 GeV",
+        },
     }

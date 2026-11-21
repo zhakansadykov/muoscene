@@ -451,6 +451,16 @@
    "K>0.2GeV": 36.929218801529494,
    "K>1GeV": 29.05955644407453
   },
+  "track_density/1150m/12m": {
+   "canyon/K>1GeV": 26434.26326652954,
+   "ground/K>0.2GeV": 10080.818540174096,
+   "ground/K>1GeV": 8514.982769197812
+  },
+  "track_density/1150m/22m": {
+   "canyon/K>1GeV": 26350.248433468514,
+   "ground/K>0.2GeV": 4794.954547917141,
+   "ground/K>1GeV": 4243.205619693013
+  },
   "wall/flat/12m": [
    0.1641476300299351,
    0.23184046238739256,
@@ -1313,6 +1323,13 @@
     0.0,
     45.0
    ]
+  },
+  "track_density": {
+   "directions": "24 x 48, uniform in the sine of elevation and in azimuth; ground: x > 0, canyon: x < 0",
+   "elevation_min_deg": 16.0,
+   "exposure_days": 60,
+   "film": "horizontal, on the floor of the niche of legacy_cases, flat bank; tracks per cm^2",
+   "integration": "trapezoids in ln K, 121 nodes from the threshold to 1e4 GeV"
   },
   "wall": "niche and directions of legacy_cases; ground 1500 x 3000 x 400 m; floor EPS below it"
  }
