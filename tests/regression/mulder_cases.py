@@ -14,6 +14,9 @@ of the wall, above the detector thresholds, the side of the ground and the side 
 apart (`track_density`). The open-sky flux of Mulder through a local geometry depends at 6e-14 on
 whether a fluxmeter without a local geometry ran earlier in the process: the frozen numbers are
 those of the order of `CASES`, in which `make_mulder_reference` computes them.
+For the forward model (roadmap 0.1-08): the flux through the invented pier of the spike — soil,
+a concrete pile cap and piles, a void in front of them — above the detector thresholds, along a
+grid of slopes from its niche (`pier`).
 
 Energies: K is the kinetic energy at the detector (Mulder), E = K + m the total energy (the
 preliminary calculation and the spike note). Units: m and kg/m^3 (Mulder), g/cm^2 for opacity;
@@ -33,6 +36,7 @@ muoscene materials can define `Loam` differently in the same process.
 """
 
 import functools
+import importlib.util
 import pathlib
 import tempfile
 
@@ -73,6 +77,10 @@ AIR_ELEVATION = 45.0  # degrees: the open-sky line of sight of `scene_air`, towa
 # the cut-off of the sea-level reference from 15.7 degrees (`docs/notes/flux.md`).
 TRACK_ELEVATION = 16.0  # degrees
 TRACK_GRID = (24, 48)  # directions in the sine of elevation and in azimuth
+# `pier`: lines of sight on a grid of slopes of this half-width and this many steps a side, kept
+# within the cone of 45 degrees: 77 directions, 34 of them into the massif; (0.4, 0) crosses the void
+PIER_SLOPES = (0.8, 9)
+PIER_AIR_TOP = 1.0  # m of scene air above the brow, at the density of the site (`scene_air`)
 # Relative tolerance of the frozen numbers. Spread between platforms: 3e-9 between Linux arm64 and
 # x86-64; on macOS arm64 up to 3.1e-6 in the elastic-scattering tables and 4e-9 elsewhere. The
 # mildest change of physics tried, the pair-production model of Mulder, moves thresholds by 8e-5.
@@ -512,6 +520,94 @@ def track_density(depth):
     return out
 
 
+@functools.cache
+def spike():
+    """The spike script as a module: the invented pier (PIER, PIER_NICHE, PIER_VOID) is defined there."""
+    path = pathlib.Path(__file__).resolve().parents[2] / "docs" / "notes" / "spike" / "mulder_spike.py"
+    spec = importlib.util.spec_from_file_location("mulder_spike", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def pier_detector():
+    """Detector of the pier of the spike: EPS above the floor of its niche."""
+    return np.array([legacy.Niche().xd, 0.0, -spike().PIER_NICHE + EPS])
+
+
+def pier_directions():
+    """Lines of sight of `pier`: a grid of slopes, tx along x into the massif, in the cone of 45 degrees."""
+    t = np.linspace(-PIER_SLOPES[0], PIER_SLOPES[0], PIER_SLOPES[1])
+    tx, ty = (a.ravel() for a in np.meshgrid(t, t))
+    keep = np.hypot(tx, ty) <= 1.0
+    u = np.stack([tx[keep], ty[keep], np.ones(keep.sum())], axis=1)
+    return u / np.linalg.norm(u, axis=1)[:, None]
+
+
+def build_pier(void_density):
+    """The invented pier of the spike behind a vertical wall at x = 0, seen from its niche.
+
+    Soil of RegLoam at SOIL in a box of 400 m x 800 m x 200 m; a pile cap and 3 x 3 piles of
+    RegConcrete at CONCRETE_DENSITY; a sphere in front of them with the material of the soil
+    and the density `void_density`, kg/m^3; a niche of 0.5 m x 0.3 m x 0.3 m. The air of the
+    scene has the density of the site and ends PIER_AIR_TOP above the brow (`scene_air`).
+    """
+    define_materials()
+    x0, size, cap, radius, length, n, pitch = spike().PIER
+    depth, void = spike().PIER_NICHE, spike().PIER_VOID
+    centre = np.array([200.0, 0.0, -100.0])
+
+    def rel(x, y, z):  # daughters are placed relative to the centre of the ground box
+        return [float(q) * CM for q in np.array([x, y, z]) - centre]
+
+    ground = {"box": [400 * CM, 800 * CM, 200 * CM], "position": list(centre * CM)}
+    ground |= {"material": "G4_SILICON_DIOXIDE", "subtract": ["Niche"]}
+    ground["Anomaly"] = {"sphere": {"radius": void[3] * CM}, "position": rel(*void[:3])}
+    ground["Anomaly"]["material"] = "G4_AIR"
+    ground["Cap"] = {"box": [size * CM, size * CM, cap * CM], "material": "G4_CONCRETE"}
+    ground["Cap"]["position"] = rel(x0 + size / 2, 0, -cap / 2)
+    for i in range(n):
+        for j in range(n):
+            px, py = x0 + size / 2 + (i - (n - 1) / 2) * pitch, (j - (n - 1) / 2) * pitch
+            pile = {"cylinder": {"length": length * CM, "radius": radius * CM}, "material": "G4_CONCRETE"}
+            ground[f"Pile{i * n + j}"] = pile | {"position": rel(px, py, -cap - length / 2)}
+    niche = {"box": [0.5 * CM, 0.3 * CM, 0.3 * CM], "position": [0.25 * CM, 0, (-depth + 0.15) * CM]}
+    height = 200.0 + 2 * PIER_AIR_TOP
+    world = {"box": [1000 * CM, 1000 * CM, height * CM]}
+    world["position"] = [0.0, 0.0, (PIER_AIR_TOP - height / 2) * CM]
+    world |= {"material": "G4_AIR", "Ground": ground, "Niche": niche | {"material": "G4_AIR"}}
+    frame = mulder.LocalFrame(altitude=ALTITUDE, **SITE)
+    geometry = mulder.LocalGeometry(calzone.Geometry({"Environment": world}), frame=frame)
+    for medium in geometry.media:
+        name = medium.description.split(".")[-1]
+        if name in ("Environment", "Niche"):
+            medium.material, medium.density = "Air", site_air_density()
+        elif name == "Ground":
+            medium.material, medium.density = "RegLoam", SOIL
+        elif name == "Anomaly":
+            medium.material, medium.density = "RegLoam", void_density
+        else:
+            medium.material, medium.density = "RegConcrete", CONCRETE_DENSITY
+    return geometry
+
+
+def pier(void_density):
+    """Flux through the invented pier above the detector thresholds, along `pier_directions`.
+
+    Above 1 GeV for every direction; above 0.2 GeV for the directions into the massif (tx > 0)
+    alone: towards the canyon that threshold is below the cut-off of the sea-level reference.
+    `void_density` is the density of the sphere in front of the pier: SOIL for no void, AIR for
+    a void.
+    """
+    meter = mulder.Fluxmeter(geometry=build_pier(void_density))
+    u, position = pier_directions(), pier_detector()
+    ground = u[:, 0] > 0
+    return {
+        "K>1GeV": integral_many_above(meter, position, u, THRESHOLDS[-1]),
+        "ground/K>0.2GeV": integral_many_above(meter, position, u[ground], THRESHOLDS[0]),
+    }
+
+
 # ------------------------------------------------------------------ registry
 
 
@@ -562,6 +658,8 @@ def _cases():
     out[f"scene_air/{ALTITUDE:.0f}m/atmosphere"] = scene_air_atmosphere
     for depth in (legacy_cases.UPPER, legacy_cases.LOWER):
         out[f"track_density/{ALTITUDE:.0f}m/{depth:.0f}m"] = functools.partial(track_density, depth)
+    for label, density in (("soil", SOIL), ("void", AIR)):
+        out[f"pier/{ALTITUDE:.0f}m/{label}"] = functools.partial(pier, density)
     return out
 
 
@@ -631,6 +729,14 @@ def parameters():
             "elevation_min_deg": TRACK_ELEVATION,
             "directions": f"{TRACK_GRID[0]} x {TRACK_GRID[1]}, uniform in the sine of elevation and in "
             "azimuth; ground: x > 0, canyon: x < 0",
+            "integration": "trapezoids in ln K, 121 nodes from the threshold to 1e4 GeV",
+        },
+        "pier": {
+            "scene": "PIER, PIER_NICHE and PIER_VOID of docs/notes/spike/mulder_spike.py; RegLoam at the "
+            "bulk density, RegConcrete at its own; scene air at the site density, 1 m above the brow",
+            "sphere": "soil: at the density of the soil; void: at void_density_kg_m3 of reference_void",
+            "directions": f"slopes on a grid of {PIER_SLOPES[1]} x {PIER_SLOPES[1]} up to "
+            f"{PIER_SLOPES[0]:g}, within the cone of 45 degrees; tx along x; ground: tx > 0",
             "integration": "trapezoids in ln K, 121 nodes from the threshold to 1e4 GeV",
         },
     }

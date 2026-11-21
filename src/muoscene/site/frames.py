@@ -28,6 +28,9 @@ import numpy as np
 from ..geometry.pathtable import PathTable
 from ..geometry.scene import ALTITUDE_MAX_M, Scene
 
+FLUX_STATES = 1 << 16
+"""States (lines of sight times energies) given to Mulder at a time by `Site.differential_flux`."""
+
 
 def cos_sin_deg(angle_deg: float) -> tuple[float, float]:
     """Cosine and sine of an angle in degrees, exact at the multiples of 90 degrees."""
@@ -134,6 +137,48 @@ class Site:
         return PathTable(
             table.bodies, np.broadcast_to(position, shape), np.broadcast_to(direction, shape), table.length_m
         )
+
+    def differential_flux(self, scene: Scene, position_m, direction, kinetic_energy_gev) -> np.ndarray:
+        """Differential flux of Mulder through a scene along lines of sight given in ENU.
+
+        scene                a scene of this site (`Site.scene`), with the densities it was built with
+        position_m           points in ENU, m; shape (..., 3) or (3,)
+        direction            unit vectors in ENU from the detector towards the sky; shape (..., 3)
+        kinetic_energy_gev   kinetic energies at the detector, GeV; shape (k,)
+
+        Continuous transport of the reference flux of Mulder (GCCLY15 at sea level) through the
+        atmosphere model of the scene and through the scene itself, without a geomagnetic
+        field. Returns m⁻² s⁻¹ sr⁻¹ GeV⁻¹ with the shape (..., k); zero below the cut-off of
+        the reference. This is the direct path the fast one is checked against
+        (`muoscene.transport.direct`), and, like `scan`, the only place where its points and
+        directions are turned into the axes of the scene (decided on 21 November 2026). The
+        lines are scanned first, so that `Scene.scan` refuses what Mulder answers with a crash,
+        an endless loop or a wrong number: a point outside the scene or on a boundary, a
+        direction that is not a unit vector towards the sky, a line cut by the limits of the model.
+        """
+        self._check(scene)
+        position, direction = _vectors(position_m, "position_m"), _vectors(direction, "direction")
+        energy = np.asarray(kinetic_energy_gev, dtype=float)
+        if energy.ndim != 1 or energy.size == 0 or not np.all(np.isfinite(energy) & (energy > 0)):
+            raise ValueError("kinetic_energy_gev: a one-dimensional array of positive energies, GeV")
+        shape = np.broadcast_shapes(position.shape, direction.shape)
+        points = np.ascontiguousarray(np.broadcast_to(self.scene_from_enu(position), shape)).reshape(-1, 3)
+        lines = np.ascontiguousarray(np.broadcast_to(self.scene_from_enu(direction), shape)).reshape(-1, 3)
+        scene.scan(points, lines)
+        meter = mulder.Fluxmeter(geometry=scene.mulder, atmosphere=scene.atmosphere)
+        meter.mode = "continuous"
+        out = np.empty((len(points), energy.size))
+        step = max(1, FLUX_STATES // energy.size)
+        for start in range(0, len(points), step):
+            part = slice(start, start + step)
+            n = len(points[part])
+            flux = meter.flux(
+                position=np.repeat(points[part], energy.size, axis=0),
+                direction=np.repeat(lines[part], energy.size, axis=0),
+                energy=np.tile(energy, n),
+            )
+            out[part] = np.asarray(flux, dtype=float).reshape(n, energy.size)
+        return out.reshape(*shape[:-1], energy.size)
 
     def _check(self, scene: Scene) -> None:
         if not isinstance(scene, Scene):

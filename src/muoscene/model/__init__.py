@@ -7,3 +7,8 @@ geometry, transport, flux and detectors meet.
 
 Layer 3: may import only `muoscene` modules of layer <= 3 (see `muoscene._layers`).
 """
+
+from .expected import Station, expected_counts, expected_map, grid_of
+from .hypotheses import Hypothesis, HypothesisSet
+
+__all__ = ["Hypothesis", "HypothesisSet", "Station", "expected_counts", "expected_map", "grid_of"]

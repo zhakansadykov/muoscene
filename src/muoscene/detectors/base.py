@@ -41,6 +41,7 @@ import numpy as np
 
 from ..flux import LEGACY_RESPONSE, EnergyResponse
 from ..site.frames import cos_sin_deg
+from ..units import DAY
 from .grid import DEFAULT_SUPERSAMPLE, DirectionGrid
 
 ORTHONORMAL = 1e-9
@@ -49,6 +50,7 @@ LEVEL = 1e-12
 """A normal whose horizontal part is shorter than this is vertical: its azimuth is taken as 0."""
 IN_PLANE = 1e-12
 """A direction with |u · z_d| below this lies in the plane of the detector and has no slopes."""
+M2_PER_CM2 = 1.0e-4
 
 
 def _number(value, name: str) -> float:
@@ -420,3 +422,42 @@ class Detector(abc.ABC):
                 " (sin_elevation_min, or LinesOfSight.select for the lines under soil). The reference"
                 " at the site altitude is roadmap 0.1-05b"
             ) from error
+
+    def counts(self, table, lines: LinesOfSight, opacity_g_cm2, exposure_days: float) -> np.ndarray:
+        """Expected number of tracks in every bin of the grid of the lines of sight.
+
+        table           a flux table of the detector altitude (`flux_m2_s_sr`)
+        lines           accepted lines of sight made from a grid (`Detector.lines_of_sight`)
+        opacity_g_cm2   opacity of the reference material of the table along each of them,
+                        g/cm²; one value per line, or one for all (0 for the open sky)
+        exposure_days   length of the exposure, days
+
+        The sum over the lines of a bin of flux over the energy response × projected sensitive
+        area × efficiency × solid angle × time (conventions, "Energy and flux"). Shape (bins in
+        ty, bins in tx), the flat index of `LinesOfSight.bin`; a bin without a line has zero:
+        the detector accepts nothing there. Lines behind the plane of the detector or outside
+        its `tan_max` are not in its acceptance and are refused (the track density of a film
+        counts them, `EmulsionStack.track_density`); so are lines without a grid. Lines for
+        which the table has no flux are refused by `flux_m2_s_sr`: the forward model leaves
+        them out and marks their bins (roadmap 0.1-08).
+        """
+        if not isinstance(lines, LinesOfSight):
+            raise TypeError("lines must be LinesOfSight")
+        days = _number(exposure_days, "exposure_days")
+        if not days > 0:
+            raise ValueError("exposure_days must be positive")
+        if lines.grid is None or lines.bin is None:
+            raise ValueError("counts per bin need lines of sight made from a grid (Detector.lines_of_sight)")
+        if lines.both_sides or lines.tan_max is None or lines.tan_max > self.tan_max * (1.0 + 1e-9):
+            raise ValueError(
+                "counts are summed over the acceptance of the detector: lines within its tan_max"
+                " and in front of its plane (Detector.lines_of_sight)"
+            )
+        n_ty, n_tx = lines.grid.shape
+        if len(lines) == 0:
+            return np.zeros((n_ty, n_tx))
+        flux = self.flux_m2_s_sr(table, lines, opacity_g_cm2)
+        area_m2 = np.asarray(self.projected_area_cm2(lines.tx, lines.ty), dtype=float) * M2_PER_CM2
+        rate = flux * area_m2 * lines.solid_angle_sr * self.efficiency
+        per_bin = np.bincount(lines.bin, weights=rate, minlength=n_ty * n_tx)
+        return per_bin.reshape(n_ty, n_tx) * (days * DAY)

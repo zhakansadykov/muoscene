@@ -1,6 +1,6 @@
 # Headline numbers and their conditions
 
-The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`, in the geometry section of `tests/unit/test_geometry_scene.py`, and in the section on the site and the detectors of the files named there. Last update: 21 November 2026, Mulder 0.3.7, Calzone 1.2.2.
+The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`, in the geometry section of `tests/unit/test_geometry_scene.py`, and in the sections on the site and the detectors and on the forward model of the files named there. Last update: 21 November 2026, Mulder 0.3.7, Calzone 1.2.2.
 
 ## The reference void
 
@@ -105,12 +105,30 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 | track density in a niche above 0.2 GeV, side of the ground only | 10 081 at 12 m, 4794 at 22 m; 8514 and 4242 above 1 GeV | the side of the canyon has no flux above 0.2 GeV with a sea-level reference: the whole is refused until roadmap 0.1-05b | the same |
 | table and scene against Mulder through the scene, track density | −0.04 and −0.06 % on the side of the ground, +0.03 % on the side of the canyon | the 1152 lines of sight of the frozen cases, above 0.2 and 1 GeV | `test_track_density_in_a_niche_against_mulder`; `track_density/1150m/12m`, `…/22m` |
 
+## Forward model
+
+`muoscene.transport` and `muoscene.model` (`docs/notes/forward.md`). Tests are those of `tests/unit/test_transport_table.py`, `test_transport_direct.py` and `test_model_expected.py`. Continuous transport, straight lines of sight; thresholds are kinetic energies at the detector; the scene is the invented pier of the spike at 1150 m, seen from its niche 20 m below the brow, in loam of 1.8 g/cm³ with concrete of 2.3 g/cm³.
+
+| Quantity | Value | Conditions | Test or frozen case |
+|---|---|---|---|
+| fast path against the direct flux of Mulder, in the run | mean +0.011 %, rms 0.014 %, largest 0.033 % | above 1 GeV; 256 random accepted lines of sight, seed 8; table at the altitude of the detector, equivalent opacity with the displaced air taken out | `test_the_demo_is_within_half_a_percent_of_mulder` |
+| the same above 0.2 GeV | mean +0.017 %, rms 0.021 %, largest 0.061 % | on the lines of sight that have a flux: under soil that leaves no cut-off | the same |
+| fast path against Mulder through a pier built without muoscene | within 0.033 % above 1 GeV, 0.050 % above 0.2 GeV | 77 lines on a grid of slopes; above 0.2 GeV the 34 into the massif | `test_the_fast_path_against_the_frozen_pier`; `pier/1150m/soil`, `…/void` |
+| uniform slab, table against Mulder with the real soil | −0.003 to +0.021 %; −0.007 to −0.078 % without the displaced air | 0.5, 2 and 20 m of soil, zenith 0° and 45°, above 0.2 and 1 GeV | `test_a_uniform_slab_matches_mulder`; `threshold_slab/…` |
+| a table at the altitude of the surface, open sky seen 20 m below it | +0.31 to +0.39 % | above 1 GeV, sines of elevation 1 to 0.5 | `test_a_table_at_the_altitude_of_the_surface_is_wrong_for_the_open_sky` |
+| weights of the equivalent opacity, the iteration taken | +0.023 % in flux above 1 GeV, +0.034 % above 0.2 GeV | 3000 g/cm² of loam under 1840 g/cm² of concrete, against the chain of ranges in the true order | `test_the_alternatives_that_were_not_taken` |
+| the same with a weight at one energy | +0.17, +0.06, −0.08 % | weight taken at 1, 7, 100 GeV; −0.17 % with no weights; +0.048 % for the chain in the wrong order | the same |
+| a hypothesis without a new scan against a rebuilt scene | counts within 10⁻¹² | no void, a decompaction of 20 %, a bank of 1.7 g/cm³ | `test_a_hypothesis_without_a_new_scan_equals_a_rebuilt_scene` |
+| expected tracks in the map of the pier | 2.398·10⁶ above 1 GeV; the void adds 572, 10.9 % in its two bins | 120 cm² of horizontal film, 60 days, efficiency 0.9, cone of 45°, 1324 bins of 0.05 in the slopes | `test_counts_are_the_sum_of_the_detector_over_its_lines`, `test_the_void_of_the_frozen_pier_is_seen` |
+| bins with a flux above 0.2 GeV | 968 of 1324; the open sky in none | sea-level reference at 1150 m: the canyon and the thin soil above the niche are below the cut-off; all 1324 above 1 GeV | `test_bins_without_a_flux_are_marked_not_filled` |
+| a film tilted by 30° towards the canyon, above 1 GeV | 6 of 1324 bins without a flux | lines of sight between 15.1° and 15.7° of elevation | `test_a_tilted_detector_and_the_edge_of_the_table` |
+
 ## Accuracy of the base
 
 | Comparison | Size |
 |---|---|
 | Mulder CSDA ranges against the PDG tables, 0.3 GeV – 1 TeV | within 0.34 % for standard rock, 0.24 % for concrete, 0.52 % for water; Mulder is the shorter |
 | other models of pair production, bremsstrahlung, photonuclear loss in Mulder | thresholds change by 8·10⁻⁵, 1.6·10⁻⁴, 1.3·10⁻³ |
-| fast path against direct Mulder flux, invented pier, above 1 GeV | rms 0.17 %, maximum 0.39 % |
+| fast path against direct Mulder flux, invented pier, above 1 GeV | spike, with its coarse table: rms 0.17 %, maximum 0.39 %; muoscene: rms 0.014 %, maximum 0.033 % ("Forward model") |
 | a + bE of the preliminary calculation against loam | threshold 16 % too high at 500–1000 g/cm², 9 % at 3600, 6 % at 5400 |
 | platforms: Linux arm64, Linux x86-64, macOS arm64 | 3·10⁻⁹, and 3.1·10⁻⁶ in the elastic-scattering tables on macOS |
