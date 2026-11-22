@@ -14,6 +14,13 @@ response itself, 30 nodes per decade up to 10 TeV with the nodes of the response
 against 240 nodes per decade it is 7e-5 off above 1 GeV and 3e-5 above 0.2 GeV under 12 m of
 soil. A sum that gives its first node a whole step is 2–3 % high (`docs/notes/flux.md`).
 
+In the first half decade from the threshold the nodes are 240 to a decade (22 November 2026,
+roadmap 0.1-10). With a sea-level reference the flux of the open sky falls steeply from a
+threshold just above its cut-off, and 30 nodes there put the direct flux above 1 GeV at 15.5
+degrees of elevation at 1150 m 0.62 % above the table, which is right: the check refused a run
+it should have passed. With the denser start the difference is 0.02 %, against 0.01 % with 2000
+nodes a decade (`tests/unit/test_transport_direct.py`); a line takes 226 nodes instead of 121.
+
 Mulder discrete flux, with scattering, comes with version 0.3.
 
 Units: kinetic energy in GeV, flux in m⁻² s⁻¹ sr⁻¹; points in m and directions as unit vectors in ENU.
@@ -36,27 +43,45 @@ K_MAX_GEV = 1.0e4
 """Top of the integral over energy: the highest energy at the detector of a `MulderTable`."""
 NODES_PER_DECADE = 30
 """Energy nodes per decade of the integral over the response."""
+FIRST_DECADES = 0.5
+"""From the first energy of the response up by this many decades the nodes are denser:"""
+FIRST_NODES_PER_DECADE = 240
+"""Nodes per decade there: near the cut-off of a sea-level reference the flux falls steeply from
+the threshold."""
 LIMIT = 5.0e-3
 """Largest deviation of the fast path from the direct one a run accepts: the 0.5 % of the roadmap."""
 
 
 def energy_nodes(
-    response: EnergyResponse, k_max_gev: float = K_MAX_GEV, nodes_per_decade: int = NODES_PER_DECADE
+    response: EnergyResponse,
+    k_max_gev: float = K_MAX_GEV,
+    nodes_per_decade: int = NODES_PER_DECADE,
+    first_nodes_per_decade: int = FIRST_NODES_PER_DECADE,
 ) -> np.ndarray:
     """Kinetic energies (GeV) of the integral over a response: from its first node to `k_max_gev`.
 
-    Equal steps in ln K, at least `nodes_per_decade` to a decade, and the other nodes of the
-    response among them.
+    Equal steps in ln K: at least `first_nodes_per_decade` to a decade over the first
+    `FIRST_DECADES` from the first node, at least `nodes_per_decade` beyond, and the other nodes
+    of the response among them.
     """
     if not isinstance(response, EnergyResponse):
         raise TypeError("the direct flux is integrated over an EnergyResponse")
-    if isinstance(nodes_per_decade, bool) or not isinstance(nodes_per_decade, int) or nodes_per_decade < 4:
-        raise ValueError("nodes_per_decade must be an integer of at least 4")
+    for name, value in (
+        ("nodes_per_decade", nodes_per_decade),
+        ("first_nodes_per_decade", first_nodes_per_decade),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 4:
+            raise ValueError(f"{name} must be an integer of at least 4")
     first = response.k_min_gev
     if not (math.isfinite(k_max_gev) and k_max_gev > first):
         raise ValueError("k_max_gev must be above the first energy of the response")
-    count = int(math.ceil(math.log10(k_max_gev / first) * nodes_per_decade)) + 1
-    k = np.logspace(math.log10(first), math.log10(k_max_gev), max(count, 2))
+    top = min(first * 10.0**FIRST_DECADES, k_max_gev)
+    dense = max(nodes_per_decade, first_nodes_per_decade)
+    count = int(math.ceil(math.log10(top / first) * dense)) + 1
+    k = np.logspace(math.log10(first), math.log10(top), max(count, 2))
+    if top < k_max_gev:
+        count = int(math.ceil(math.log10(k_max_gev / top) * nodes_per_decade)) + 1
+        k = np.concatenate([k, np.logspace(math.log10(top), math.log10(k_max_gev), max(count, 2))[1:]])
     k[0], k[-1] = first, k_max_gev
     more = [e for e in response.kinetic_energy_gev[1:] if e < k_max_gev]
     return np.unique(np.concatenate([k, more]))

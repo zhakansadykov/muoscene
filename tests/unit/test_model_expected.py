@@ -156,8 +156,9 @@ def quiet(*arguments, **options):
 def test_the_demo_is_within_half_a_percent_of_mulder():
     """The criterion of the roadmap, in the run itself: 256 random lines of sight per detector, seed 8.
 
-    Met above 1 GeV: mean +0.011 %, rms 0.014 %, largest 0.033 %. Above 0.2 GeV, on the lines
-    that have a flux: mean +0.017 %, rms 0.021 %, largest 0.061 %. The limits asserted are three
+    Met above 1 GeV: mean +0.006 %, rms 0.014 %, largest 0.032 %. Above 0.2 GeV, on the lines
+    that have a flux: mean +0.020 %, rms 0.022 %, largest 0.049 % (0.061 % before the denser
+    energy nodes of the direct flux at its threshold, 22 November 2026). The limits asserted are three
     times what was met.
     """
     expected = demo()

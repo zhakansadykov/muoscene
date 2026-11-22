@@ -16,19 +16,23 @@ Knows materials by name only; no energies, no fluxes. Calzone is imported only i
 Layer 1: may import only `muoscene` modules of layer <= 1 (see `muoscene._layers`).
 """
 
+from .canyon import Bank, Canyon, Pier
 from .pathtable import BodyInfo, PathTable
 from .primitives import Anomaly, Box, Cut, Cylinder, Ground, Layer, Sphere, Structure, pile_grid
 from .scene import Scene, air_density_g_cm3
 
 __all__ = [
     "Anomaly",
+    "Bank",
     "BodyInfo",
     "Box",
+    "Canyon",
     "Cut",
     "Cylinder",
     "Ground",
     "Layer",
     "PathTable",
+    "Pier",
     "Scene",
     "Sphere",
     "Structure",

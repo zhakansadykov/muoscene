@@ -72,12 +72,13 @@ Attributes: versions of muoscene, Mulder and Calzone; creation time; `undefined`
 
 | Comparison | Result | Test or frozen case |
 |---|---|---|
-| the pier, in the run: 256 random lines per detector, seed 8, above 1 GeV | mean +0.011 %, rms 0.014 %, largest 0.033 % | `test_the_demo_is_within_half_a_percent_of_mulder` |
-| the same above 0.2 GeV, on the lines that have a flux | mean +0.017 %, rms 0.021 %, largest 0.061 % | the same |
+| the pier, in the run: 256 random lines per detector, seed 8, above 1 GeV | mean +0.006 %, rms 0.014 %, largest 0.032 % | `test_the_demo_is_within_half_a_percent_of_mulder` |
+| the same above 0.2 GeV, on the lines that have a flux | mean +0.020 %, rms 0.022 %, largest 0.049 % | the same |
 | the pier built without muoscene, 77 lines on a grid of slopes | within 0.033 % above 1 GeV; within 0.050 % above 0.2 GeV on the 34 lines into the massif | `test_the_fast_path_against_the_frozen_pier`; `pier/1150m/soil`, `…/void` |
 | the void of the pier | +12.6 % on the line through it; +10.9 % in its two bins; +572 tracks of 2.398·10⁶ in the map | `test_the_void_of_the_frozen_pier_is_seen` |
 | a hypothesis on one scan against a scene rebuilt with those densities | counts within 10⁻¹² | `test_a_hypothesis_without_a_new_scan_equals_a_rebuilt_scene` |
 | energy nodes of the direct flux, 30 against 240 per decade | 7·10⁻⁵ above 1 GeV, 3·10⁻⁵ above 0.2 GeV | `test_the_integral_starts_at_the_threshold` |
+| the open sky above 1 GeV at 15.5, 16 and 17 degrees, where 1 GeV is just above the cut-off at 1150 m: the table against the direct flux | with 30 nodes a decade from the threshold 0.62, 0.14 and 0.05 % below it, and a right run refused; with 240 a decade over the first half decade, the default since 22 November 2026 (roadmap 0.1-10), within 0.021 % | `test_the_check_at_the_edge_of_the_cut_off` |
 | a scene turned by 90° against the same scene in its own axes | within 1.8·10⁻⁶ | `test_points_and_directions_are_in_enu` |
 
 The criterion of the roadmap is 0.5 %; the spike had rms 0.17 % and a largest deviation of 0.39 % with its coarse table (`docs/notes/mulder.md`, E12).

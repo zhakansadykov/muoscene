@@ -1,6 +1,6 @@
 # Headline numbers and their conditions
 
-The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`, in the geometry section of `tests/unit/test_geometry_scene.py`, and in the sections on the site and the detectors and on the forward model of the files named there. Last update: 21 November 2026, Mulder 0.3.7, Calzone 1.2.2.
+The numbers that other documents quote, each with the conditions it holds under and the place it comes from. Other documents refer here instead of repeating them. Frozen cases are those of `tests/regression/data/`; commands are those of `docs/notes/spike/mulder_spike.py`; tests are those of `tests/unit/test_flux_tables.py`, in the geometry section of `tests/unit/test_geometry_scene.py`, and in the sections on the site and the detectors, on the forward model and on the examples of the files named there. Last update: 22 November 2026, Mulder 0.3.7, Calzone 1.2.2.
 
 ## The reference void
 
@@ -111,8 +111,8 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 
 | Quantity | Value | Conditions | Test or frozen case |
 |---|---|---|---|
-| fast path against the direct flux of Mulder, in the run | mean +0.011 %, rms 0.014 %, largest 0.033 % | above 1 GeV; 256 random accepted lines of sight, seed 8; table at the altitude of the detector, equivalent opacity with the displaced air taken out | `test_the_demo_is_within_half_a_percent_of_mulder` |
-| the same above 0.2 GeV | mean +0.017 %, rms 0.021 %, largest 0.061 % | on the lines of sight that have a flux: under soil that leaves no cut-off | the same |
+| fast path against the direct flux of Mulder, in the run | mean +0.006 %, rms 0.014 %, largest 0.032 % | above 1 GeV; 256 random accepted lines of sight, seed 8; table at the altitude of the detector, equivalent opacity with the displaced air taken out | `test_the_demo_is_within_half_a_percent_of_mulder` |
+| the same above 0.2 GeV | mean +0.020 %, rms 0.022 %, largest 0.049 % | on the lines of sight that have a flux: under soil that leaves no cut-off | the same |
 | fast path against Mulder through a pier built without muoscene | within 0.033 % above 1 GeV, 0.050 % above 0.2 GeV | 77 lines on a grid of slopes; above 0.2 GeV the 34 into the massif | `test_the_fast_path_against_the_frozen_pier`; `pier/1150m/soil`, `…/void` |
 | uniform slab, table against Mulder with the real soil | −0.003 to +0.021 %; −0.007 to −0.078 % without the displaced air | 0.5, 2 and 20 m of soil, zenith 0° and 45°, above 0.2 and 1 GeV | `test_a_uniform_slab_matches_mulder`; `threshold_slab/…` |
 | a table at the altitude of the surface, open sky seen 20 m below it | +0.31 to +0.39 % | above 1 GeV, sines of elevation 1 to 0.5 | `test_a_table_at_the_altitude_of_the_surface_is_wrong_for_the_open_sky` |
@@ -122,6 +122,24 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 | expected tracks in the map of the pier | 2.398·10⁶ above 1 GeV; the void adds 572, 10.9 % in its two bins | 120 cm² of horizontal film, 60 days, efficiency 0.9, cone of 45°, 1324 bins of 0.05 in the slopes | `test_counts_are_the_sum_of_the_detector_over_its_lines`, `test_the_void_of_the_frozen_pier_is_seen` |
 | bins with a flux above 0.2 GeV | 968 of 1324; the open sky in none | sea-level reference at 1150 m: the canyon and the thin soil above the niche are below the cut-off; all 1324 above 1 GeV | `test_bins_without_a_flux_are_marked_not_filled` |
 | a film tilted by 30° towards the canyon, above 1 GeV | 6 of 1324 bins without a flux | lines of sight between 15.1° and 15.7° of elevation | `test_a_tilted_detector_and_the_edge_of_the_table` |
+| the check of the fast path where 1 GeV is just above the cut-off | the table within 0.021 % of the direct flux; it was 0.62 % below the direct flux of 30 energy nodes a decade, which refused right runs | open sky at 1150.5 m, 15.5° of elevation; 240 nodes a decade over the first half decade from the threshold since 22 November 2026 (roadmap 0.1-10) | `tests/unit/test_transport_direct.py`, `test_the_check_at_the_edge_of_the_cut_off` |
+
+## Examples
+
+`examples/canyon_demo`, `examples/open_sky` and `examples/slab` (roadmap 0.1-10), all at 1150 m with the sea-level reference, continuous transport; films of 120 cm², efficiency 0.9, a cone of 45° in 1324 bins of 0.05 in the slopes; loam with 15 % of water. The sizes of the canyon are in `examples/canyon_demo/README.md`. Tests are those of `tests/unit/test_example_canyon_demo.py`, `test_example_open_sky.py` and `test_example_slab.py`; the run as a user starts it is `python run.py` in each folder.
+
+| Quantity | Value | Conditions | Test |
+|---|---|---|---|
+| tracks above 1 GeV, synthetic canyon | 1.771·10⁶ and 2.293·10⁶ in the niches 12 and 22 m below the left brow; 2.147·10⁶ and 2.751·10⁶ on the wall beside them | 60 days; the upper films tilted by 20° into the massif, the lower horizontal; a niche 0.5 × 0.3 × 0.3 m, a film on the wall 0.15 m in front of it | `test_the_anomalies_are_seen_where_the_scene_puts_them`, `test_a_niche_against_pins` |
+| the void of 2 m behind the left wall, above 1 GeV | +1947 and +360 tracks in the niches, up to +12.6 and +10.6 % in a bin; +1614 and +345 on the wall, up to +12.1 and +10.8 % | the same films | `test_the_anomalies_are_seen_where_the_scene_puts_them` |
+| open-sky bins, niche against wall | 0 and 52 against 382 and 662 | the same films | `test_a_niche_against_pins` |
+| bins with a number above 0.2 GeV | 1292 and 990 in the niches, 942 and 622 on the wall, of 1324 | the same films; the others are below the cut-off of the reference | `test_above_0_2_gev_the_open_sky_has_no_number` |
+| the decompaction of 3 m behind the right wall, −20 %, above 1 GeV | +1189 tracks, up to +3.6 % in a bin | a film tilted by 20° in a niche 12 m below the right edge | `test_the_anomalies_are_seen_where_the_scene_puts_them` |
+| fast path against Mulder in the demo | at most 0.066 % above 1 GeV, 0.14 % above 0.2 GeV | 256 lines per film and threshold, seed 10 (`python run.py`); 0.065 and 0.14 % on 80 lines in the test | `test_every_run_checks_itself_against_mulder` |
+| open sky: counts against the flux table | within 7·10⁻¹⁶; 69.22 m⁻² s⁻¹ sr⁻¹ above 1 GeV at the vertical; no bin above 0.2 GeV | films 0.5 m above the ground; cut-off 0.284 GeV at the vertical | `test_every_check_holds`, `test_what_the_sea_level_reference_gives_at_1150_m` |
+| slab: the flux along the vertical and 45° against the frozen `threshold_slab` | −0.003 to +0.019 % | the loam of the frozen cases at 1.8 g/cm³, 0.5, 2 and 20 m, above 0.2 and 1 GeV | `test_the_frozen_slab` |
+| slab: opacity against ρ d / cos θ | within 8·10⁻¹⁶ in every bin | loam of 1.84 g/cm³ | `test_every_check_holds` |
+| a film on the left wall tilted into the massif | at 40° 154 bins below 14.5° of elevation, where the table ends; from 44° refused, its lines below 4° leave the model | 22 m below the brow, 0.15 m in front of the wall, a model 300 m behind the wall and along it | `tests/unit/test_geometry_canyon.py`, `test_how_far_a_film_on_the_wall_can_tilt_into_the_massif` |
 
 ## Accuracy of the base
 
@@ -129,6 +147,6 @@ The error is the Monte Carlo error of the share. The share without a threshold i
 |---|---|
 | Mulder CSDA ranges against the PDG tables, 0.3 GeV – 1 TeV | within 0.34 % for standard rock, 0.24 % for concrete, 0.52 % for water; Mulder is the shorter |
 | other models of pair production, bremsstrahlung, photonuclear loss in Mulder | thresholds change by 8·10⁻⁵, 1.6·10⁻⁴, 1.3·10⁻³ |
-| fast path against direct Mulder flux, invented pier, above 1 GeV | spike, with its coarse table: rms 0.17 %, maximum 0.39 %; muoscene: rms 0.014 %, maximum 0.033 % ("Forward model") |
+| fast path against direct Mulder flux, invented pier, above 1 GeV | spike, with its coarse table: rms 0.17 %, maximum 0.39 %; muoscene: rms 0.014 %, maximum 0.032 % ("Forward model") |
 | a + bE of the preliminary calculation against loam | threshold 16 % too high at 500–1000 g/cm², 9 % at 3600, 6 % at 5400 |
 | platforms: Linux arm64, Linux x86-64, macOS arm64 | 3·10⁻⁹, and 3.1·10⁻⁶ in the elastic-scattering tables on macOS |

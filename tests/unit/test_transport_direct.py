@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from muoscene import geometry as G
-from muoscene.flux import LEGACY_RESPONSE, EnergyResponse
+from muoscene.flux import LEGACY_RESPONSE, EnergyResponse, MulderTable
 from muoscene.materials.composition import Material, Mixture
 from muoscene.site import Site
 from muoscene.transport import DirectCheck, compare_with_direct, direct_flux, energy_nodes, seed_of
@@ -77,9 +77,13 @@ def unit(azimuth_deg, elevation_deg):
 
 
 def test_energy_nodes_start_at_the_threshold():
+    """240 nodes a decade over the first half decade from the threshold, 30 beyond: 226 from 1 GeV."""
     k = energy_nodes(HARD)
-    assert k[0] == 1.0 and k[-1] == 1.0e4 and k.size == 121
-    assert np.diff(np.log(k)) == pytest.approx(math.log(10) / 30)
+    assert k[0] == 1.0 and k[-1] == 1.0e4 and k.size == 226
+    assert k[120] == pytest.approx(10**0.5, rel=1e-14)
+    assert np.diff(np.log(k[:121])) == pytest.approx(math.log(10) / 240)
+    assert np.diff(np.log(k[120:])) == pytest.approx(math.log(10) / 30)
+    assert energy_nodes(HARD, first_nodes_per_decade=30).size == 121  # the nodes before 22 November 2026
     soft = EnergyResponse((0.2, 0.5, 2.0), (0.3, 0.8, 1.0))
     k = energy_nodes(soft)
     assert k[0] == 0.2 and {0.5, 2.0} <= set(k.tolist()) and np.all(np.diff(k) > 0)
@@ -90,6 +94,8 @@ def test_energy_nodes_start_at_the_threshold():
         energy_nodes(HARD, k_max_gev=0.5)
     with pytest.raises(ValueError, match="nodes_per_decade"):
         energy_nodes(HARD, nodes_per_decade=2)
+    with pytest.raises(ValueError, match="first_nodes_per_decade"):
+        energy_nodes(HARD, first_nodes_per_decade=2)
 
 
 def test_the_seed_of_a_generator_is_what_it_was_made_with():
@@ -142,9 +148,11 @@ def test_points_and_directions_are_in_enu():
 
 
 def test_the_integral_starts_at_the_threshold():
-    """Trapezoids from the first energy of the response: 30 nodes a decade against 240 within 2e-4.
+    """Trapezoids from the first energy of the response: the default nodes against 240 a decade within 2e-4.
 
-    Met 7e-5 above 1 GeV and 3e-5 above 0.2 GeV under the massif. A response that rises from
+    Met 7e-5 above 1 GeV and 3e-5 above 0.2 GeV under the massif with 30 nodes a decade everywhere;
+    2.3e-5 and 4.8e-5 with the default since 22 November 2026, 240 a decade over the first half
+    decade. A response that rises from
     0.2 to 1 GeV gives a flux between the two thresholds.
     """
     into = unit(90.0, 60.0)
@@ -157,6 +165,29 @@ def test_the_integral_starts_at_the_threshold():
         values[k_min] = float(coarse)
     rising = direct_flux(site(), bank(), DETECTOR, into, EnergyResponse((0.2, 1.0), (0.0, 1.0)))
     assert values[1.0] < rising < values[0.2]
+
+
+def test_the_check_at_the_edge_of_the_cut_off():
+    """Open sky above 1 GeV just above the elevation where 1 GeV meets the cut-off at 1150 m.
+
+    A film 0.5 m above a flat ground, lines towards the south at 15.5, 16 and 17 degrees. The
+    table against the direct flux: with 30 nodes a decade from the threshold the direct flux was
+    0.62, 0.14 and 0.05 % above the table and refused a right run at 15.5 degrees (found with
+    `examples/open_sky`, 22 November 2026); with 240 nodes a decade over the first half decade it
+    is within 1e-3, met 0.02 %. With 2000 nodes a decade the table is 0.010 % low at 15.5 degrees.
+    """
+    plain = site()
+    flat = G.Ground("ground", [(-100.0, 0.0), (100.0, 0.0)], -20.0, -100.0, 100.0, LOAM, mc.SOIL / 1000.0)
+    scene = plain.scene([flat])
+    table = MulderTable(mc.ALTITUDE + 0.5, LOAM, cache=False)
+    for elevation, before in ((15.5, 6.0e-3), (16.0, 1.3e-3), (17.0, 4.0e-4)):
+        u = unit(180.0, elevation)
+        fast = float(table.integral(HARD, u[2], 0.0))
+        direct = float(direct_flux(plain, scene, (0.0, 0.0, 0.5), u, HARD))
+        assert fast == pytest.approx(direct, rel=1e-3)
+        k = energy_nodes(HARD, first_nodes_per_decade=30)
+        coarse = np.trapezoid(plain.differential_flux(scene, (0.0, 0.0, 0.5), u, k) * k, np.log(k))
+        assert coarse / fast - 1 > before  # what the check had before
 
 
 def test_what_mulder_would_answer_with_a_crash_is_refused():
