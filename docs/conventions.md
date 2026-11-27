@@ -1,6 +1,6 @@
 # Conventions
 
-Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`); revision 4 of 16 November 2026. Revision 2 (16 November): equivalent-opacity weights depend on energy, a soil is a mixture of skeleton and water. Revision 3 (16 November, after the review): decay along the air path, numbers quoted for two detector thresholds, the site-altitude reference from 0.1.1. Revision 4 (16 November, roadmap 0.1-05): a flux table holds the open-sky flux on a grid of energy and elevation and takes the opacity through the range of its reference material. Every module follows these rules; a change here is a breaking change, is made on purpose in a commit of its own and is recorded in `CHANGELOG.md`.
+Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`); revision 5 of 27 November 2026. Revision 2 (16 November): equivalent-opacity weights depend on energy, a soil is a mixture of skeleton and water. Revision 3 (16 November, after the review): decay along the air path, numbers quoted for two detector thresholds, the site-altitude reference from 0.1.1. Revision 4 (16 November, roadmap 0.1-05): a flux table holds the open-sky flux on a grid of energy and elevation and takes the opacity through the range of its reference material. Revision 5 (27 November, after roadmap tasks 0.1-07 to 0.1-10b): the axes of a scene, the tilt of a detector, the two sides of a film in a track density, the solid angle of the part of a bin in the acceptance, lines of sight through an edge of a mesh, the weights of the equivalent opacity between the threshold and the energy above the path, the air the solid bodies displace, the comparison with Mulder in every run, bins without a flux marked on request, the variables of the expected map. Every module follows these rules; a change here is a breaking change, is made on purpose in a commit of its own and is recorded in `CHANGELOG.md`.
 
 ## Backends and units
 
@@ -21,7 +21,9 @@ X = ρ L × 100 for ρ in g/cm³ and L in m; 1 m w.e. = 100 g/cm². Configuratio
 
 ## Frames
 
-**World frame — local ENU.** x points east, y north, z up; metres. The origin is the site origin given by latitude, longitude and altitude; z = 0 is that altitude above sea level. It is the Mulder local frame of the scene. Survey coordinate systems (UTM, a contractor's local grid, WGS84) are converted only in `muoscene.site`, at input and output.
+**World frame — local ENU.** x points east, y north, z up; metres. The origin is the site origin given by latitude, longitude and altitude; z = 0 is that altitude above sea level. For a scene that is not turned it is the Mulder local frame of the scene. Survey coordinate systems (UTM, a contractor's local grid, WGS84) are converted only in `muoscene.site`, at input and output.
+
+**Axes of a scene.** A scene is described along its own axes, which share the origin and the vertical of the world frame and are turned about the vertical. The site holds the angle: `scene_azimuth_deg` ψ is the azimuth of the +y axis of the scene from true north, clockwise, so that in ENU x_s = (cos ψ, −sin ψ, 0) and y_s = (sin ψ, cos ψ, 0). The Mulder local frame of a scene is the frame of these axes, `LocalFrame(azimuth=ψ)`. Points and directions pass between ENU and the axes of a scene only in `muoscene.site` (`Site.scan`, `Site.differential_flux`); poses, grids, detectors and output are in ENU.
 
 **Directions.** A direction `u` is a unit vector pointing from the detector towards the sky, i.e. opposite to the muon momentum (the observation direction of Mulder). Zenith angle θ = arccos(u_z); elevation is 90° − θ. Azimuth φ is measured from true north, clockwise (towards east):
 
@@ -39,6 +41,8 @@ A detector has a reference point (centre of the sensitive volume) in ENU and thr
 - `tilt_deg` β — angle between the detector normal and the vertical; 0 is a horizontal film or plane;
 - `roll_deg` γ — rotation about the normal.
 
+The tilt lies between 0° and 90°. At a tilt of zero the azimuth and the roll turn about the same axis in opposite senses, and the pose is written with an azimuth of zero.
+
 With γ = 0 the detector axes in ENU are
 
     z_d = (sin β sin α, sin β cos α, cos β)      normal
@@ -55,7 +59,9 @@ They are the slopes an emulsion scan reports (dx/dz, dy/dz) and the ratios of hi
 
 **Scan frame.** Film axes used by the scanning laboratory are related to (x_d, y_d) by a fixed rotation or flip recorded in the exposure log; `muoscene.io.tracks` applies it when reading tracks.
 
-**Acceptance.** A detector accepts directions with u · z_d > 0 and sqrt(tx² + ty²) ≤ `tan_max`. The projected sensitive area is A (u · z_d). A detector point is never placed exactly on a boundary between bodies.
+**Acceptance.** A detector accepts directions with u · z_d > 0 and sqrt(tx² + ty²) ≤ `tan_max`. The projected sensitive area is A (u · z_d). A detector point is never placed exactly on a boundary between bodies. A line of sight that passes within 1 nm of an edge or a vertex of a mesh is traced 3 nm aside (9 nm, or in another direction, where that lands near a second edge); one that runs at less than 0.57° to a face at such an edge, or along the edge, is refused (`docs/notes/geometry.md`).
+
+A track density is not a count in the acceptance: a film records a muon whichever side it enters. It is summed over the lines of sight on both sides of the film, with |u · z_d| as the projection, and states the cone and the lowest elevation it was summed over.
 
 ## Direction grid
 
@@ -63,7 +69,7 @@ Bins are rectangles in (tx, ty). The solid angle of the rectangle [0, a] × [0, 
 
     Ω = arctan(a b / sqrt(1 + a² + b²))
 
-and a general bin follows from four corner terms. Expected counts in a bin are integrated over sub-samples (n × n directions per bin, `supersample` in the configuration).
+and a general bin follows from four corner terms. Expected counts in a bin are integrated over sub-samples (n × n directions per bin, `supersample` in the configuration). The part of a bin within the acceptance circle has an exact solid angle as well, the contour integral of (1 − cos θ) dφ along its boundary; a sub-sample carries the exact solid angle of its rectangle within the circle and a direction inside it.
 
 ## Bodies, densities and anomalies
 
@@ -84,13 +90,13 @@ An anomaly is a body that scales the density of its host by (1 + `drho_rel`): �
 - *Sea-level reference* — GCCLY15 (Guan et al. 2015), the Mulder default. Mulder carries it through the air between sea level and the site. Above sea level this defines the flux only above K_cut(elevation), the energy lost in that air: 0.28, 0.38, 0.53 GeV at 1150 m and 0.69, 0.97, 1.40 GeV at 3340 m for elevations of 90°, 45°, 30°. Mulder applies muon decay along that air path: the flux at altitude is the sea-level flux at the shifted energy times the ratio of stopping powers times exp(Δτ/τ), 1.21 at 1 GeV and 1.04 at 5 GeV at 1150 m. Production of muons in that air layer is not modelled. Below sea level the reference is carried down through the extra air and has no cut-off.
 - *Site-altitude reference* — a table of the open-sky differential flux in K and elevation computed for the altitude of the site (a model of the atmospheric flux such as PARMA, cross-checked with MCEq, or a measured open-sky spectrum), passed to Mulder as a tabulated reference. It has no cut-off and includes production and decay in the air. It is the default when the site is more than 100 m above sea level, from version 0.1.1 on; version 0.1.0 has the sea-level reference only.
 
-A run whose energy response reaches below the cut-off of a sea-level reference is refused.
+Where the energy response reaches below the cut-off of a sea-level reference there is no number: the run is refused or, on request, the bins are marked as undefined with the reason; nothing is put in their place.
 
 **Flux table.** For each detector a `FluxTable` gives the differential flux against K, sine of elevation and opacity of the reference material. It holds the open-sky flux at the detector altitude on a grid of K and sine of elevation, computed by Mulder with the configured atmosphere and, optionally, the geomagnetic field of a date (then for one azimuth), together with the CSDA range R and the stopping power S of the reference material. Under an opacity X the flux is that of the open sky at the energy K_top with R(K_top) = R(K) + X, times S(K_top) / S(K): this is what continuous transport does, and every new table is compared with Mulder under a dense slab of the reference material at the detector altitude and refused if they differ (`docs/notes/flux.md`). Tables are cached on disk, outside the repository, by a hash of their inputs. With a sea-level reference a table holds only energies from 10 MeV above the cut-off, also under an opacity that leaves some of it, and a request below is refused. An integral over the energy response is a trapezoid sum that starts at the threshold itself; the response is always given, a table has no default threshold.
 
-**Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, where w_m(K) = R_ref(K) / R_m(K) is the ratio of CSDA muon ranges in the reference material and in material m at kinetic energy K (0.995 for concrete relative to the loam of the spike at 7 GeV). For a path through one material X_eq = R_ref(R_m⁻¹(X)) exactly; the energy at which the weights of a path through several materials are taken is set by the forward model (roadmap 0.1-08). The atmosphere is part of the table and is not counted.
+**Equivalent opacity.** Path lengths in solid bodies are combined as X_eq = Σ w_m ρ L, with weights from the CSDA muon ranges R_ref in the reference material and R_m in material m; at one kinetic energy their ratio R_ref(K) / R_m(K) is 0.995 for concrete relative to the loam of the spike at 7 GeV. For a detector whose response starts at K_min the weight is taken between K_min and the energy K_top a muon needs above the path to arrive with K_min: w_m = (R_ref(K_top) − R_ref(K_min)) / (R_m(K_top) − R_m(K_min)), with R_ref(K_top) = R_ref(K_min) + X_eq, found by iteration. It is exact for a path through one material, needs no order of the materials along the path and does not depend on which material is the reference. The atmosphere is part of the table: a table holds the open sky at the altitude of the detector, so the air that the solid bodies of a path displace, ρ_air times the length of the path in them, weighted like a material, is taken out of the opacity the table is entered with.
 
-**Fast and direct paths.** Expected maps use the fast path: scan, equivalent opacity, table lookup. Every run also computes the direct Mulder continuous flux for a random sample of directions and stores the deviation; in the spike it is 0.2 % rms. Mulder discrete flux, which includes scattering, is used for final numbers and to calibrate the scattering kernel.
+**Fast and direct paths.** Expected maps use the fast path: scan, equivalent opacity, table lookup. Every run also computes the direct Mulder continuous flux, for the scene as built, on a random sample of 256 accepted lines of sight per detector and stores the deviation with the seed of the sample; a run is refused above 0.5 %; on the invented pier it is 0.014 % rms above 1 GeV. Mulder discrete flux, which includes scattering, is used for final numbers and to calibrate the scattering kernel.
 
 ## Domain of validity
 
@@ -100,7 +106,7 @@ Every run checks where it stands and writes it to the run report. Outside the do
 |---|---|---|
 | site below sea level | sea-level reference carried down | — |
 | site above sea level | 0.1.0: sea-level reference, only above K_cut; from 0.1.1: site-altitude reference, no cut-off | — |
-| sea-level reference above sea level | allowed only above K_cut for all accepted directions | — |
+| sea-level reference above sea level | above K_cut only; a run says what to do with accepted directions below it: refuse, or compute the rest and mark the bins | — |
 | opacity up to 3e4 g/cm² (about 100 m of rock) along accepted directions | continuous transport | — |
 | larger opacity | refused | tables in mixed mode, version 0.3 |
 | targets of a few metres and less | continuous transport, scattering not applied; the report gives the scattering factor measured for the configuration when available | discrete mode and a scattering kernel, version 0.3 |
@@ -111,14 +117,18 @@ Every run checks where it stands and writes it to the run report. Outside the do
 
 | Variable | Dimensions | Meaning |
 |---|---|---|
-| `solid_angle_sr` | ty, tx | solid angle of the bin |
+| `solid_angle_sr` | ty, tx | solid angle of the bin: the whole rectangle in the slopes |
+| `accepted_solid_angle_sr` | detector, ty, tx | solid angle of the accepted lines of sight of the bin: within the circle, in front of the detector, above the horizon |
 | `opacity_gcm2` | detector, hypothesis, ty, tx | mean equivalent opacity over sub-samples |
 | `counts` | detector, hypothesis, ty, tx | expected number of tracks |
 | `transmission` | detector, hypothesis, ty, tx | flux through matter over open-sky flux |
-| `reference` | detector, ty, tx | bin sees open sky (opacity below the reference threshold) |
-| `zenith_deg`, `azimuth_deg` | detector, ty, tx | bin centre in ENU |
+| `status` | detector, hypothesis, ty, tx | 0 defined; 1 not accepted (counts are zero); 2 below the cut-off of the reference flux; 3 elevation outside the flux table; 4 opacity beyond the flux table (counts are nan for 2 to 4) |
+| `open_sky_status` | detector, ty, tx | the same for the counts without matter, the denominator of `transmission` |
+| `reference` | detector, ty, tx | bin sees open sky: no accepted line of sight of the bin has an equivalent opacity above `reference_opacity_g_cm2`, zero by default, under any hypothesis |
+| `zenith_deg`, `azimuth_deg` | detector, ty, tx | bin centre in ENU on the side of the detector normal; a zenith angle above 90° means that the centre looks below the horizon; the azimuth of a vertical centre is 0 |
+| `exposure_days` | detector | length of the exposure |
 
-Attributes carry the package and backend versions, the configuration hash, creation time, exposure, and the deviation of the fast path from the direct one.
+Attributes carry the package and backend versions, the configuration hash, creation time, exposure, and the deviation of the fast path from the direct one; also the site, the stations with their energy responses, the hypotheses, and the seed and the size of the sample of the comparison.
 
 ## Tracks
 
