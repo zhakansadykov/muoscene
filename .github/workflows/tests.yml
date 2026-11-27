@@ -16,6 +16,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
+    # 2.2 times the longest job so far, Windows with Python 3.12 (13 min 23 s on 668fbfe): a test that
+    # never returns would hold the runner for the six hours of GitHub, as on macOS on 668fbfe (roadmap 0.1-10b)
+    timeout-minutes: 30
     steps:
       # on Windows git would check the files out with CRLF, which the format check and text comparisons refuse
       - if: runner.os == 'Windows'

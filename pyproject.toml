@@ -66,6 +66,10 @@ testpaths = ["tests"]
 markers = ["validation: slow comparisons against PUMAS/Mulder and MUTE (deselect with -m 'not validation')"]
 addopts = "-ra --strict-markers -m 'not validation'"
 xfail_strict = true
+# a test that runs this long prints the stacks of its threads and goes on; the CI job stops at its own
+# limit. The longest test takes 42 s on the Linux VM (the discrete transport of the validation tests)
+# and macOS runs 5 to 7 times slower (roadmap 0.1-10b)
+faulthandler_timeout = 600
 
 [tool.ruff]
 line-length = 110
