@@ -14,7 +14,10 @@ density still by 0.3 % (`docs/numbers.md`).
 
 What a scan refuses, because Mulder 0.3.7 answers it with a crash, an endless loop or a wrong
 number: a point outside the box of the scene, a direction that is not finite or not a unit
-vector, a point on a boundary between bodies, and a line of sight cut by the limits of a ground.
+vector, a point on a boundary between bodies, a line of sight cut by the limits of a ground, and
+a line that meets an edge of a mesh at a grazing angle. A line that meets an edge or a vertex of
+a mesh otherwise is moved off it by a few nanometres before Mulder sees it (`edges`, roadmap
+0.1-10b); `traced_lines` gives the lines as Mulder is given them.
 
 Units at this boundary: metres on both sides; g/cm³ become kg/m³ of Mulder.
 """
@@ -29,10 +32,10 @@ import numpy as np
 from ..materials.backend import register
 from ..materials.composition import Material, Mixture
 from ..materials.library import AIR
-from . import checks
-from .builder import assemble
+from . import checks, edges
+from .builder import assemble, prism_mesh
 from .pathtable import BodyInfo, PathTable
-from .primitives import Anomaly, Cut, Ground, Structure
+from .primitives import Anomaly, Cut, Ground, Prism, Structure
 
 KG_M3_PER_G_CM3 = 1.0e3
 UNIT_TOLERANCE = 1e-9
@@ -115,6 +118,9 @@ class Scene:
         self.calzone = assembly.geometry
         self._volumes = assembly.volumes
         self._grounds = tuple(body for body in self.bodies if isinstance(body, Ground))
+        self._edges = edges.mesh_edges(
+            prism_mesh(volume.shape) for volume in self._volumes if isinstance(volume.shape, Prism)
+        )
 
         described = _describe(self.bodies, self.hosts, register(air), self.air_density_g_cm3)
         self.table_bodies = tuple(described)
@@ -155,13 +161,13 @@ class Scene:
         The two are broadcast against each other. Returns a `PathTable` of that shape.
 
         ValueError for a point outside the box of the scene or closer than 1 µm to a boundary
-        between bodies, for a direction that is not a unit vector pointing upwards, and for a
-        line of sight that crosses a limit of the model inside a ground (`Ground`).
+        between bodies, for a direction that is not a unit vector pointing upwards, for a line of
+        sight that crosses a limit of the model inside a ground (`Ground`), and for one that meets
+        an edge of a mesh at less than 0.57 degrees to a face there (`edges`). The table holds
+        the points as given; Mulder scans them as `traced_lines` gives them.
         """
-        position, direction = self._lines(position_m, direction)
+        position, direction, o, u, _ = self._traced(position_m, direction)
         shape = position.shape[:-1]
-        o, u = position.reshape(-1, 3), direction.reshape(-1, 3)
-        self._refuse_cut_lines(o, u)
         lengths = np.zeros((len(o), len(self.table_bodies)))
         for start in range(0, len(o), CHUNK):
             part = slice(start, start + CHUNK)
@@ -169,6 +175,27 @@ class Scene:
             per_medium = per_medium.reshape(-1, len(self._medium_body))
             lengths[part, self._present] = np.add.reduceat(per_medium[:, self._order], self._starts, axis=1)
         return PathTable(self.table_bodies, position, direction, lengths.reshape(*shape, lengths.shape[1]))
+
+    def traced_lines(self, position_m, direction) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The lines of sight as Mulder is given them, after the checks of `scan`.
+
+        position_m, direction   as for `scan`
+        Returns the points (m) and the unit directions, broadcast to one shape (..., 3), and a
+        boolean array (...) of the lines whose point was moved off an edge of a mesh, by 3 or
+        9 nm across the line (`edges.move_off_edges`); the other points are those given, bit for
+        bit. `scan` and `muoscene.site.Site.differential_flux` both trace these lines. Raises
+        what `scan` raises.
+        """
+        position, direction, o, u, moved = self._traced(position_m, direction)
+        return o.reshape(position.shape), u.reshape(position.shape), moved.reshape(position.shape[:-1])
+
+    def _traced(self, position_m, direction):
+        """The checked lines broadcast as given, then flat as Mulder takes them: points moved off edges."""
+        position, direction = self._lines(position_m, direction)
+        o, u = position.reshape(-1, 3), direction.reshape(-1, 3)
+        self._refuse_cut_lines(o, u)
+        moved_o, moved = edges.move_off_edges(self._edges, o, u)
+        return position, direction, moved_o, u, moved
 
     def locate(self, position_m) -> np.ndarray:
         """Name of the body at every point (m, shape (..., 3)); an array of strings of shape (...)."""

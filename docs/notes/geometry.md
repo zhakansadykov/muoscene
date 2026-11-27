@@ -1,6 +1,6 @@
 # Geometry
 
-Roadmap task 0.1-06, 17 November 2026, Mulder 0.3.7, Calzone 1.2.2. Module `muoscene.geometry`; conventions, revision 4, sections "Frames" and "Bodies, densities and anomalies". Every number below comes from the named test of `tests/unit/test_geometry_scene.py`, `test_geometry_pathtable.py` or `test_geometry_checks.py`, from a frozen case of `tests/regression/data/mulder_reference.json`, or from the command printed next to it; the headline ones are in `docs/numbers.md`. Sizes in tests are those the repository already had: the wall, banks, niches and pile cap of `tests/regression/legacy_cases.py`, the reference void of `mulder_cases.py`, the invented pier of `docs/notes/spike/mulder_spike.py`.
+Roadmap task 0.1-06, 17 November 2026, Mulder 0.3.7, Calzone 1.2.2; the section on lines of sight through an edge of a mesh: roadmap task 0.1-10b, 27 November 2026. Module `muoscene.geometry`; conventions, revision 4, sections "Frames" and "Bodies, densities and anomalies". Every number below comes from the named test of `tests/unit/test_geometry_scene.py`, `test_geometry_pathtable.py` or `test_geometry_checks.py`, from a frozen case of `tests/regression/data/mulder_reference.json`, or from the command printed next to it; the headline ones are in `docs/numbers.md`. Sizes in tests are those the repository already had: the wall, banks, niches and pile cap of `tests/regression/legacy_cases.py`, the reference void of `mulder_cases.py`, the invented pier of `docs/notes/spike/mulder_spike.py`.
 
 ## What a scene is
 
@@ -73,6 +73,7 @@ Opacity is a sum over that table (conventions): `opacity_g_cm2(densities_g_cm3, 
 | a direction with u_z ≤ 0 | conventions: directions point to the sky |
 | a point within 1 µm of a boundary between bodies | the medium there is ambiguous; the frozen cases keep the detector 1 mm above the niche floor. Inside a cut only the surface of the cut counts |
 | a line of sight that crosses a limit of a ground inside it | beyond its bottom, its faces across y and the ends of its profile the model has nothing: the path would be short without a sign of it. The message gives the number of such lines and their elevations |
+| a line of sight within 1 nm of an edge of a mesh at less than 0.57° to a face there, or along the edge | Mulder 0.3.7 may never return or give a wrong path along a line through an edge (next section), and a move of a few nanometres changes the path of such a line by more than a micrometre. Any other line through an edge is moved off it, not refused |
 
 The first three are reproduced by a geometry of two boxes (the third prints 30 and 5 m where the first prints 60 and 10 m):
 
@@ -88,6 +89,136 @@ print(geometry.scan(position=[[0.0, 0.0, -20.0]], direction=[[0.0, 0.0, 2.0]]))
 # geometry.scan(position=[[0.0, 0.0, -20.0]], direction=[[float('nan'), 0.0, 1.0]])  # never returns
 "
 ```
+
+## Lines of sight through an edge of a mesh
+
+Roadmap 0.1-10b, decided on 27 November 2026; module `muoscene.geometry.edges`. The pieces of a ground and of its layers are closed meshes of triangles (`builder.prism_mesh`): every side face of a prism is two triangles that share a diagonal, the caps are triangulated. Where a line of sight meets an edge or a vertex of these triangles exactly, Calzone 1.2.2 and Mulder 0.3.7 fail without an error:
+
+| Line of sight | What Mulder gives | Where |
+|---|---|---|
+| leaves the ground through the diagonal of a face | the flux never returns: the navigator of Geant4 turns in `G4Navigator::CheckOverlapsIterative`, sampling points of the tessellated solid. The scan gives no path in the ground along such a line: 0 m instead of 2 m along the lines 3 and 9 of the pencil of `examples/slab`, and along 57 of the 114 lines of the map of its film under 2 m through the diagonal of the top, up to 2.83 m lost | macOS 27.3, arm64, Python 3.14.5 (27 November 2026); not seen on Linux |
+| touches a concave edge, as at the foot of a canyon wall, passing from the ground under the floor into the bank | the path beyond the edge is taken for air: 29.48 m of solid instead of 51.84 m in `test_lines_through_edges_get_their_analytic_path` | Linux and macOS |
+| leaves through the diagonal of a face, meshes traversed with `bvh` | no path in the ground at all | Linux and macOS; the builder uses `voxels` |
+
+Such lines come from symmetric scenes, not by chance: a detector at the centre of a square ground looks through the diagonal of its top along every direction with tx = −ty. The trap is narrow. On macOS the flux along the lines 3 and 9 of the pencil of `examples/slab` never returned with their point moved 1e-14 m across the diagonal and was right from 1e-13 m; on Linux the line through the foot of the step below has the wrong path 1e-13 m off the edge and the right one from 1e-12 m. Of all the lines tried on macOS — the pencil and other lines through the diagonal of the slab, the edges of an invented canyon of one layer, the edges and a vertex of a box structure and the edges of a niche — every one that failed passed within 1e-11 m of an edge of a mesh; the box and the niche did not fail.
+
+What is done. `Scene.scan` and `muoscene.site.Site.differential_flux` give Mulder every line through `Scene.traced_lines`: a line within 1 nm (`edges.TOLERANCE_M`) of an edge or a vertex of a mesh has its point moved by 3 nm across the line and the edge; where that lands near another edge — a vertex, or the crossing of the diagonals with which two pieces split a face they share at the top of a layer — the next of 16 fixed moves of 3 and 9 nm across the line is taken. The direction is kept, the path table keeps the point as given, and the moves are the same on every system. A line at less than 0.57° to a face at the edge it meets is refused (previous section). The move changes the path by at most its size over |u · n| of a face the line crosses: 0.9 µm at the edge at worst, 3 nm over the sine of the elevation at a flat top. The edges are those of every mesh as written for Calzone: the top of a ground and of each layer, the walls and slopes of the profile, the faces where pieces meet at the top of a layer, and the bottom, the faces across y and the faces under the ends of the profile, which are limits of the model; the parts of meshes inside a cut are kept. Boxes, cylinders and spheres are solids of Geant4, not meshes; cylinders and spheres were not tried.
+
+| Check | Result | Test |
+|---|---|---|
+| the pencil of the film under 2 m of `examples/slab` | lines 3, 6, 9 and 12, those with tx = −ty, moved by 3 nm across; the others bit for bit as given | `test_the_lines_of_the_pencil_through_the_diagonal_are_moved` |
+| the map of that film | 114 of 20 388 lines moved; none left within 1 nm of an edge, by a distance found independently; a second pass moves nothing | `test_after_the_move_every_line_is_off_every_edge` |
+| lines through the edges of an invented canyon: a brow, the top of a layer on a wall, the crossing of two diagonals, a slope, both feet of the walls, an edge and a vertex at the limits of the model | the analytic path within 10⁻⁷ m, met 9·10⁻⁹ m; without the move the two feet get 29.48 and 22.36 m instead of 51.84 and 44.72 m | `test_lines_through_edges_get_their_analytic_path` |
+| a line 0.006° from the wall through its brow; lines through the diagonal of a top at 0.3° and 1° of elevation | refused, refused, moved | `test_a_line_that_grazes_a_face_at_an_edge_is_refused` |
+| the lines of `examples/canyon_demo` | none within 0.3 mm of an edge, none moved | `test_the_lines_of_the_canyon_demo_pass_no_closer_than_0_3_mm` |
+| the points `Site.differential_flux` gives Mulder | those of `traced_lines`, in the axes of a scene turned by 30° | `test_the_flux_of_mulder_goes_along_the_traced_lines` |
+| the flux of Mulder along the 16 lines of the pencil, in a child process with a timeout of 300 s | every line answers; the four through the diagonal have the flux of their mirror within 6·10⁻¹⁵ on Linux | `test_the_lines_through_the_diagonal_of_the_top_answer` |
+| the maps of `examples/slab` against those without the move | 56 of 7944 bins change, by at most 3.4·10⁻¹¹ (the film under 20 m, whose moves are not horizontal); `examples/canyon_demo` bit for bit | the command below |
+| the cost | 1.2 and 2.2 % of the time of a scan on macOS, with 18 and 54 edges; 5.34·10⁴ directions/s with 34 media against 5.4·10⁴ before; 8 to 10 % on the Linux VM | the command of "Run on another machine" |
+
+Calzone and Mulder alone, without muoscene, on a step — a polygon extruded along y, 24 triangles — and on a box of 12 triangles whose top is split along x = y. On Linux and macOS the step gives 10.770330 m of rock instead of 32.310989 m on the line through its concave edge and on that line moved 1e-13 m off it, and the right path from 1e-12 m; on Linux the box gives the right path with `voxels` and none with `bvh`, and its flux 0.914936 m⁻² s⁻¹ sr⁻¹ GeV⁻¹; on macOS it gives none with either, and its flux along the diagonal never returns (27 November 2026). On macOS the same box 40 or 4 m wide answered: of those tried, the one of 400 m is the smallest that hangs.
+
+```python
+import pathlib, tempfile
+import calzone, mulder, numpy as np
+
+
+def geometry(vertices, faces, world_m, algorithm="voxels"):
+    """Calzone and Mulder alone: one closed mesh of rock (OBJ with a normal per face) in a box of air."""
+    v = np.array(vertices, dtype=float)
+    lines = [f"v {x!r} {y!r} {z!r}" for x, y, z in vertices]
+    for a, b, c in faces:
+        n = np.cross(v[b] - v[a], v[c] - v[a])
+        lines.append("vn {!r} {!r} {!r}".format(*(n / np.linalg.norm(n)).tolist()))
+    lines += [f"f {a + 1}//{k} {b + 1}//{k} {c + 1}//{k}" for k, (a, b, c) in enumerate(faces, start=1)]
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "mesh.obj"
+        path.write_text("\n".join(lines) + "\n")
+        mesh = {"mesh": {"path": str(path), "units": "m", "algorithm": algorithm}, "material": "G4_WATER"}
+        world = {"box": [100.0 * world_m] * 3, "material": "G4_AIR", "Mesh": mesh}  # Calzone takes cm
+        g = mulder.LocalGeometry(calzone.Geometry({"World": world}))
+    g.media[0].material, g.media[1].material = "Air", "Rock"
+    return g
+
+
+def prism(polygon, y0, y1):
+    """A counter-clockwise polygon (x, z) extruded along y: each side two triangles, the caps a fan."""
+    n = len(polygon)
+    vertices = [(x, y0, z) for x, z in polygon] + [(x, y1, z) for x, z in polygon]
+    faces = [f for i in range(n) for f in ((i, n + i, n + (i + 1) % n), (i, n + (i + 1) % n, (i + 1) % n))]
+    faces += [f for k in range(1, n - 1) for f in ((0, k, k + 1), (n, n + k + 1, n + k))]
+    return vertices, faces
+
+
+# a step with its concave edge at x = z = 0; the line goes from under the step through that edge into its top
+step = geometry(*prism([(-20, -20), (20, -20), (20, 0), (0, 0), (0, 10), (-20, 10)], -20.0, 20.0), 60.0)
+o, u = np.array([10.0, 0.0, -4.0]), np.array([-10.0, 0.0, 4.0]) / np.hypot(10.0, 4.0)
+for offset in (0.0, 1e-13, 1e-12, 3e-9):
+    rock = float(
+        np.asarray(step.scan(position=[o + offset * np.array([u[2], 0.0, -u[0]])], direction=[u])).ravel()[1]
+    )
+    print(f"step, line {offset:g} m off the edge: {rock:.6f} m of rock, analytic {32.310989:.6f}")
+# a box 400 m wide, 60 m deep, its top split along x = y; the line from 2 m under its centre leaves through it
+box = [
+    (-200, -200, -60),
+    (200, -200, -60),
+    (200, 200, -60),
+    (-200, 200, -60),
+    (-200, -200, 0),
+    (200, -200, 0),
+    (200, 200, 0),
+    (-200, 200, 0),
+]
+faces = [
+    (0, 2, 1),
+    (0, 3, 2),
+    (4, 5, 6),
+    (4, 6, 7),
+    (0, 1, 5),
+    (0, 5, 4),
+    (1, 2, 6),
+    (1, 6, 5),
+    (2, 3, 7),
+    (2, 7, 6),
+    (3, 0, 4),
+    (3, 4, 7),
+]
+u = [-0.000749999578125356, -0.000749999578125356, 0.9999994375004746]
+for algorithm in ("voxels", "bvh"):
+    g = geometry(box, faces, 402.0, algorithm)
+    print(
+        f"box, {algorithm}: {float(np.asarray(g.scan(position=[[0.0, 0.0, -2.0]], direction=[u])).ravel()[1]):.9f} m of rock, analytic {2.0 / u[2]:.9f}"
+    )
+meter = mulder.Fluxmeter(geometry=geometry(box, faces, 402.0))
+meter.mode = "continuous"
+print(
+    "box, flux at 10 GeV:",
+    float(np.asarray(meter.flux(position=[0.0, 0.0, -2.0], direction=u, energy=10.0)).ravel()[0]),
+)  # macOS: never returns
+```
+
+The maps of `examples/slab` with and without the move, in one process, on Linux, where the paths without it are right for these films:
+
+```bash
+python -c "
+import importlib.util, numpy as np
+from muoscene.geometry import edges
+spec = importlib.util.spec_from_file_location('slab', 'examples/slab/run.py')
+slab = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(slab)
+def counts():
+    maps = slab.run(check_directions=0)['maps']
+    return np.concatenate([m['counts'].values.ravel() for m in maps.values()])
+moved = counts()
+edges.move_off_edges = lambda e, o, u: (np.array(o, dtype=float), np.zeros(len(o), dtype=bool))  # as before 0.1-10b
+before = counts()
+ok = np.isfinite(before) & (before > 0)
+change = np.abs(moved[ok] / before[ok] - 1.0)
+print(f'{np.count_nonzero(change)} of {ok.sum()} bins change, by at most {change.max():.1e}')
+"
+```
+
+Not done: a spatial index of the edges. The check takes every edge for every line of sight, which is cheap for the prisms of version 0.1 (18 to 120 edges) and not for the meshes of terrain of version 0.2.
 
 ## Air of the scene
 
@@ -133,7 +264,7 @@ for tops in ((), (-3.0,), (-3.0, -6.0, -9.0)):
 
 ## Speed
 
-`Scene.scan`, checks included, on the invented pier of the spike seen from its niche, 40 401 directions, best of three (`test_scan_speed_on_the_pier`, which asserts the 5·10⁴ directions/s of the roadmap and is marked `validation`: `python -m pytest tests/unit/test_geometry_scene.py -m validation`): 4.0·10⁵ directions/s with 14 media and 2.7·10⁵ with 34 media (two layer tops, every pile in three parts) on a Linux VM with 4 cores, arm64. On macOS itself, on the same MacBook Air (Python 3.14), the command below gives 5.9·10⁴ and 5.4·10⁴ directions/s: the roadmap is met by 18 % and 8 %, and Linux on the same machine is 5 to 7 times faster. The bare `scan` of Mulder gave 6.5·10⁴ there in the spike, a first call included (`docs/notes/mulder.md`, E7): the numbers are close, which points at Mulder and Calzone on macOS rather than at the checks of `Scene.scan`; the two were not timed apart. A scene of this size is built in 2 ms.
+`Scene.scan`, checks included, on the invented pier of the spike seen from its niche, 40 401 directions, best of three (`test_scan_speed_on_the_pier`, which asserts the 5·10⁴ directions/s of the roadmap and is marked `validation`: `python -m pytest tests/unit/test_geometry_scene.py -m validation`): 4.0·10⁵ directions/s with 14 media and 2.7·10⁵ with 34 media (two layer tops, every pile in three parts) on a Linux VM with 4 cores, arm64. On macOS itself, on the same MacBook Air (Python 3.14), the command below gives 5.9·10⁴ and 5.4·10⁴ directions/s: the roadmap is met by 18 % and 8 %, and Linux on the same machine is 5 to 7 times faster. The bare `scan` of Mulder gave 6.5·10⁴ there in the spike, a first call included (`docs/notes/mulder.md`, E7): the numbers are close, which points at Mulder and Calzone on macOS rather than at the checks of `Scene.scan`; the two were not timed apart. A scene of this size is built in 2 ms. Since roadmap 0.1-10b the scan also moves lines of sight off the edges of the meshes (above): on 27 November 2026 the command below gave 5.85·10⁴ and 5.34·10⁴ directions/s on macOS, of which the check of the 18 and 54 edges takes 1.2 and 2.2 % — the roadmap is met by 17 % and 7 % — and 3.6·10⁵ and 2.3·10⁵ on the Linux VM, where the check takes 8 to 10 % (it varies from run to run there).
 
 ## Example
 
@@ -171,7 +302,7 @@ table.opacity_g_cm2({"bank": 1.70}, {"void": -0.2})  # 1737.7 g/cm²: a drier ba
 
 ## Not in version 0.1
 
-Rotations of bodies (the frame is turned in 0.1-07); closed meshes, terrain models, survey import and layer horizons that are not planes (0.2); cuts through structures; structures across the surface; anomalies of other shapes and anomalies split at boundaries; the voxel overlay.
+Rotations of bodies (the frame is turned in 0.1-07); closed meshes, terrain models, survey import and layer horizons that are not planes (0.2), and with them a spatial index of the edges of meshes for `edges`; cuts through structures; structures across the surface; anomalies of other shapes and anomalies split at boundaries; the voxel overlay.
 
 ## Run on another machine
 
@@ -180,20 +311,26 @@ Rotations of bodies (the frame is turned in 0.1-07); closed meshes, terrain mode
 python -m pytest tests/unit/test_geometry_scene.py tests/unit/test_geometry_pathtable.py tests/unit/test_geometry_checks.py
 python -c "
 import sys, time
+import numpy as np
 sys.path.insert(0, 'tests/unit')
 import test_geometry_scene as T
+from muoscene.geometry import edges
 u = T.slope_grid(401, 1.2).reshape(-1, 3)
 origin = T.SPIKE.detector(T.SPIKE.PIER_NICHE)
+o = np.broadcast_to(np.asarray(origin, dtype=float), u.shape)
 for tops in ((), T.PIER_LAYERS):
     scene = T.pier_scene(tops)[0]
     scene.scan(origin, u[:1000])
-    best = float('inf')
+    best = check = float('inf')
     for _ in range(3):
         start = time.perf_counter()
         scene.scan(origin, u)
         best = min(best, time.perf_counter() - start)
-    print(f'{len(scene.mulder.media)} media: {len(u) / best:.1e} directions/s')
+        start = time.perf_counter()
+        edges.move_off_edges(scene._edges, o, u)  # the part of a scan that 0.1-10b added
+        check = min(check, time.perf_counter() - start)
+    print(f'{len(scene.mulder.media)} media: {len(u) / best:.1e} directions/s; the edges {100 * check / best:.1f} % of it')
 "
 ```
 
-With these 160 801 directions: 4.0·10⁵ and 2.6·10⁵ directions/s on the Linux VM, 5.9·10⁴ and 5.4·10⁴ on macOS (MacBook Air, arm64, Python 3.14; 17 November 2026).
+With these 160 801 directions: 4.0·10⁵ and 2.6·10⁵ directions/s on the Linux VM, 5.9·10⁴ and 5.4·10⁴ on macOS (MacBook Air, arm64, Python 3.14; 17 November 2026); with the check of the edges, 3.6·10⁵ and 2.3·10⁵ (the edges 8 to 10 %) and 5.85·10⁴ and 5.34·10⁴ (1.2 and 2.2 %; 27 November 2026).

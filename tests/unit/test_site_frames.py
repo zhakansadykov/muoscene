@@ -275,3 +275,41 @@ def test_a_site_is_immutable_and_passes_options_to_its_scene():
         *WHERE[:2],
         30.0,
     )
+
+
+def test_the_flux_of_mulder_goes_along_the_traced_lines(monkeypatch):
+    """`differential_flux` gives Mulder the lines `Scene.traced_lines` gives: in the axes of the scene,
+    moved off the edges of the meshes (roadmap 0.1-10b). Mulder itself is replaced by a recorder.
+
+    A square ground turned by 30 degrees; lines from its centre that leave through the diagonal of
+    its top, x = -y in the axes of the scene, and lines that do not.
+    """
+    site = Site(*WHERE, 30.0)
+    ground = G.Ground("ground", [(-200.0, 0.0), (200.0, 0.0)], -60.0, -200.0, 200.0, M.STANDARD_ROCK)
+    scene = site.scene([ground])
+    s = 1e-3 / math.sqrt(2.0)
+    in_scene = np.array([[s, -s, 1.0], [-2 * s, 2 * s, 1.0], [s, s, 1.0], [0.0, 3 * s, 1.0]])
+    in_scene /= np.linalg.norm(in_scene, axis=1, keepdims=True)
+    energies = np.array([1.0, 10.0])
+    calls = []
+
+    class Recorder:
+        def __init__(self, **options):
+            calls.append(self)
+
+        def flux(self, position, direction, energy):
+            self.position, self.direction = np.array(position), np.array(direction)
+            return np.ones(len(energy))
+
+    monkeypatch.setattr(mulder, "Fluxmeter", Recorder)
+    site.differential_flux(scene, (0.0, 0.0, -2.0), site.enu_from_scene(in_scene), energies)
+    (meter,) = calls
+    position, direction = meter.position[:: energies.size], meter.direction[:: energies.size]
+    traced, _, moved = scene.traced_lines(
+        (0.0, 0.0, -2.0), site.scene_from_enu(site.enu_from_scene(in_scene))
+    )
+    assert moved.tolist() == [True, True, False, False]
+    np.testing.assert_array_equal(position, traced)
+    np.testing.assert_allclose(direction, in_scene, atol=1e-15)
+    step = np.linalg.norm(position - [0.0, 0.0, -2.0], axis=1)
+    assert np.all(step[:2] == pytest.approx(3e-9, rel=1e-6)) and np.all(step[2:] == 0.0)

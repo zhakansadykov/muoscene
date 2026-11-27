@@ -264,8 +264,15 @@ def triangulate(polygon) -> list[tuple[int, int, int]]:
     return triangles
 
 
-def write_prism(path: pathlib.Path, prism: Prism) -> None:
-    """Write a prism as a closed OBJ mesh in metres with one outward normal per face."""
+def prism_mesh(prism: Prism) -> tuple[np.ndarray, list[tuple[int, int, int]], np.ndarray]:
+    """The closed mesh of a prism, as `write_prism` writes it and Calzone reads it.
+
+    Returns the vertices (m, shape (2n, 3): the polygon at y_min, then at y_max), the triangles as
+    triples of vertex indices, counter-clockwise seen from outside, and their outward unit normals
+    (shape (number of triangles, 3)). Every side face is two triangles that share a diagonal; the
+    caps are triangulated by `triangulate`. `muoscene.geometry.edges` takes the edges of the
+    meshes of a scene from here.
+    """
     polygon = list(prism.polygon_xz_m)
     if polygon_area_m2(polygon) < 0:
         polygon.reverse()
@@ -278,11 +285,20 @@ def write_prism(path: pathlib.Path, prism: Prism) -> None:
     for a, b, c in triangulate(polygon):  # the caps at y_min (normal -y) and at y_max (normal +y)
         faces += [(a, b, c), (n + a, n + c, n + b)]
     v = np.array(vertices)
-    lines = [f"v {x!r} {y!r} {z!r}" for x, y, z in vertices]
-    rows = []
-    for k, (a, b, c) in enumerate(faces, start=1):
+    normals = []
+    for a, b, c in faces:
         normal = np.cross(v[b] - v[a], v[c] - v[a])
         normal /= np.linalg.norm(normal)
+        normals.append(normal)
+    return v, faces, np.array(normals)
+
+
+def write_prism(path: pathlib.Path, prism: Prism) -> None:
+    """Write a prism as a closed OBJ mesh in metres with one outward normal per face (`prism_mesh`)."""
+    vertices, faces, normals = prism_mesh(prism)
+    lines = [f"v {x!r} {y!r} {z!r}" for x, y, z in vertices.tolist()]
+    rows = []
+    for k, ((a, b, c), normal) in enumerate(zip(faces, normals, strict=True), start=1):
         lines.append("vn {!r} {!r} {!r}".format(*normal.tolist()))
         rows.append(f"f {a + 1}//{k} {b + 1}//{k} {c + 1}//{k}")
     path.write_text("\n".join(lines + rows) + "\n", encoding="utf-8")

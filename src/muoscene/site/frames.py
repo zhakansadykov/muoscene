@@ -154,7 +154,11 @@ class Site:
         directions are turned into the axes of the scene (decided on 21 November 2026). The
         lines are scanned first, so that `Scene.scan` refuses what Mulder answers with a crash,
         an endless loop or a wrong number: a point outside the scene or on a boundary, a
-        direction that is not a unit vector towards the sky, a line cut by the limits of the model.
+        direction that is not a unit vector towards the sky, a line cut by the limits of the model,
+        a line at a grazing angle to a face at an edge of a mesh. Mulder then carries the flux
+        along the lines `Scene.traced_lines` gives, the same the scan traced: a line that meets
+        an edge of a mesh is moved off it by a few nanometres (roadmap 0.1-10b; on macOS the
+        flux along such a line never returns).
         """
         self._check(scene)
         position, direction = _vectors(position_m, "position_m"), _vectors(direction, "direction")
@@ -165,6 +169,7 @@ class Site:
         points = np.ascontiguousarray(np.broadcast_to(self.scene_from_enu(position), shape)).reshape(-1, 3)
         lines = np.ascontiguousarray(np.broadcast_to(self.scene_from_enu(direction), shape)).reshape(-1, 3)
         scene.scan(points, lines)
+        points, lines, _ = scene.traced_lines(points, lines)
         meter = mulder.Fluxmeter(geometry=scene.mulder, atmosphere=scene.atmosphere)
         meter.mode = "continuous"
         out = np.empty((len(points), energy.size))

@@ -14,7 +14,7 @@ The first run builds three flux tables and compiles the physics tables of Mulder
 
 ## What it checks
 
-1. The opacity of every bin is density × depth / cos θ, averaged over the bin (met 8·10⁻¹⁶).
+1. The opacity of every bin is density × depth / cos θ, averaged over the bin (met 2.6·10⁻¹¹: lines of sight of the film under 20 m that leave the ground through the diagonal of the top of its mesh are moved off it by 3 nm, `docs/notes/geometry.md`).
 2. Under 0.5 m of soil and more every bin has a number above 0.2 GeV as well: the soil removes the cut-off of the reference flux.
 3. The fast path agrees with Mulder along 256 random lines of sight per film (met within 0.026 %).
 4. The flux along the vertical and along 45°, from one narrow bin around each, agrees with Mulder along the same lines (met within 0.024 %). These are the directions of the numbers frozen for Mulder in the tests of the program: with the loam of those numbers the example reproduces them within 0.019 % (`tests/unit/test_example_slab.py`).
