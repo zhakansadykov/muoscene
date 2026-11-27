@@ -27,7 +27,7 @@ The path of a run: the accepted lines of sight of a detector through the grid â†
 | Sample of the comparison | 256 accepted lines of sight per detector that have a flux, drawn without replacement; the scene as built; refused above 0.5 % | every hypothesis compared: a Mulder geometry per hypothesis. The seed is that of the generator, written to the map |
 | `solid_angle_sr` of a bin on the edge of the circle | the whole rectangle; what a detector accepts of it is `accepted_solid_angle_sr` | the accepted part under the name of the conventions: it depends on the detector, and the variable has no `detector` dimension |
 
-The first three change what the conventions say and are proposed for their next revision: the weight with a threshold, the displaced air ("the atmosphere is part of the table and is not counted"), and the mask (the domain of validity refuses a run whose response reaches below the cut-off in any accepted direction, while numbers are asked for 0.2 GeV, which holds only under soil). The conventions were not changed by this task.
+The first three change what the conventions say and are proposed for their next revision: the weight with a threshold, the displaced air ("the atmosphere is part of the table and is not counted"), and the mask (the domain of validity refuses a run whose response reaches below the cut-off in any accepted direction, while numbers are asked for 0.2 GeV, which holds only under soil). The conventions were not changed by this task; all three entered their revision 5 on 27 November 2026.
 
 ## Equivalent opacity
 

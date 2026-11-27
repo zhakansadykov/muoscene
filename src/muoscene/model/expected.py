@@ -430,7 +430,7 @@ def expected_map(
         },
         attrs={
             "title": "muoscene expected map",
-            "conventions": "muoscene docs/conventions.md, revision 4",
+            "conventions": "muoscene docs/conventions.md, revision 5",
             "muoscene_version": __version__,
             "mulder_version": metadata.version("mulder"),
             "calzone_version": metadata.version("calzone"),

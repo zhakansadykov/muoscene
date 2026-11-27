@@ -25,7 +25,7 @@ Roadmap task 0.1-07, 21 November 2026, Mulder 0.3.7, Calzone 1.2.2. Modules `muo
 | Parity with the preliminary calculation | through a scene and `Site.scan`, with `LegacyTable` and `LEGACY_RESPONSE`; `legacy.soil_length` only to tell the terms of the difference apart | `legacy.soil_length` alone would not test the chain a user runs |
 | Area and films of a stack | `area_cm2` is the sensitive area (a film of 120 mm × 100 mm has 120 cm²; stacks side by side add up); `n_films` counts the films along the normal and does not multiply the area | — |
 
-Two of them are not in the conventions yet and are proposed for their revision 5: the azimuth of the axes of a scene ("Frames" calls the world frame the local frame of Mulder, which holds only for a scene that is not turned), and the two sides of a film in a track density ("Acceptance").
+Two of them are not in the conventions yet and are proposed for their revision 5: the azimuth of the axes of a scene ("Frames" calls the world frame the local frame of Mulder, which holds only for a scene that is not turned), and the two sides of a film in a track density ("Acceptance"). Both entered revision 5 of the conventions on 27 November 2026.
 
 ## Site and the axes of a scene
 
