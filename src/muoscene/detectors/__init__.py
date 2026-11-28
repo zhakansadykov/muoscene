@@ -7,8 +7,9 @@ humidity logs, track-density budget (exposure plus transport and storage), numbe
 scanning cost. Straw telescope (level-1 response). Generic two-plane telescope. `TrackSet`, the
 container of measured and synthetic tracks, is defined here so that `synth`, `data` and `io` share it.
 
-Version 0.1 has `Pose`, `DirectionGrid`, `LinesOfSight`, the `Detector` interface and
-`EmulsionStack` with its track density (`docs/notes/detectors.md`); the rest comes later.
+Version 0.1 has `Pose`, `DirectionGrid`, `LinesOfSight`, the `Detector` interface,
+`EmulsionStack` with its track density (`docs/notes/detectors.md`) and `TrackSet`
+(`docs/notes/tracks.md`); the rest comes later.
 
 Layer 2: may import only `muoscene` modules of layer <= 2 (see `muoscene._layers`).
 """
@@ -24,6 +25,7 @@ from .grid import (
     clipped_solid_angle_sr,
     rectangle_solid_angle_sr,
 )
+from .tracks import TrackSet
 
 __all__ = [
     "DEFAULT_BIN_WIDTH",
@@ -36,6 +38,7 @@ __all__ = [
     "Pose",
     "Subsamples",
     "TrackDensity",
+    "TrackSet",
     "clipped_solid_angle_sr",
     "lines_of_sight",
     "rectangle_solid_angle_sr",

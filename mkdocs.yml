@@ -7,6 +7,7 @@ nav:
   - Roadmap: roadmap.md
   - Headline numbers: numbers.md
   - Preliminary calculation: legacy.md
+  - File formats: formats.md
   - Mulder and Calzone spike: notes/mulder.md
   - Materials: notes/materials.md
   - Flux tables: notes/flux.md
@@ -14,3 +15,4 @@ nav:
   - Site and detectors: notes/detectors.md
   - Forward model: notes/forward.md
   - Figures: notes/figures.md
+  - Tracks: notes/tracks.md
