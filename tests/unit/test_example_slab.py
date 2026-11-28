@@ -143,3 +143,21 @@ def test_the_frozen_slab(cache, depth, pencil):
         for k_min in mc.THRESHOLDS:
             got, _ = flux[(k_min, depth, zenith)]
             assert got == pytest.approx(frozen[f"K>{k_min:g}GeV"], rel=3e-4), (depth, zenith, k_min)
+
+
+def test_the_figures_of_the_example(cache, pencil, tmp_path):
+    """A sheet of the film under 2 m above each threshold: the counts drawn are those of the map;
+    the folder of the example gets nothing. Two sheets of the six a run writes."""
+    from muoscene.viz import maps
+
+    before = sorted(p.name for p in PATH.parent.iterdir())
+    result = runs(cache, False)
+    written = EXAMPLE.figures(result, tmp_path, names=["2 m"])
+    assert sorted(p.name for p in written) == ["slab_2m_0.2GeV.png", "slab_2m_1GeV.png"]
+    assert all(p.stat().st_size > 10_000 for p in written)
+    assert sorted(p.name for p in PATH.parent.iterdir()) == before
+    figure = maps.sheet_figure(result["maps"][0.2], "2 m")
+    (mesh,) = [c for c in figure.axes[0].collections if c.get_gid() == maps.VALUES_GID]
+    counts = result["maps"][0.2]["counts"].sel(detector="2 m", hypothesis="slab").values
+    status = result["maps"][0.2]["status"].sel(detector="2 m", hypothesis="slab").values
+    np.testing.assert_array_equal(mesh.get_array().compressed(), counts[status == 0])

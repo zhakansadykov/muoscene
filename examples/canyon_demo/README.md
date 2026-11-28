@@ -85,3 +85,7 @@ On the wall a film collects about 20 % more tracks than in a niche — part of i
 ## Not modelled
 
 Scattering of muons (version 0.3), the measured energy response of the emulsion (a sharp threshold here), the soft component of the open sky (0.1-05b), fading of the latent image and the track density a scan tolerates (0.1-09 and 0.3), the pins and cassettes of a film on the wall.
+
+## Figures
+
+The run also writes a sheet for every detector above 1 and 0.2 GeV into `figures/` under the folder it is run from (`FIGURES` at the top of `run.py`; `None` writes none): `canyon_demo_<detector>_<threshold>GeV.png`, twelve files. A sheet holds the expected tracks per bin, the opacity and the transmission without the anomalies, and the ratios void / none and decompaction / none, where a bin that changes is red above one and blue below. Every map is drawn on the slopes of the detector seen from the sky; the letters N, E, S, W show where its lines of sight towards those directions leave its cone, the circle and the cross mark the zenith and its normal, dotted lines the zenith angle every 15° and a thick line the horizon. Grey bins are not accepted; hatched ones have no number, for the reason the legend gives. The sheet of L12n above 1 GeV is in `docs/img/canyon_demo_L12n_1GeV.png`; what the figures show and why — `docs/notes/figures.md`.

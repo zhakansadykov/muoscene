@@ -211,3 +211,27 @@ def test_the_example_as_a_user_runs_it(tmp_path):
     )
     assert run.returncode == 0, run.stderr
     assert "(256 lines)" in run.stdout and "Done in" in run.stdout
+
+
+def test_the_figures_of_the_example(result, tmp_path):
+    """The sheet of L12n above each threshold: counts, opacity, transmission and the two ratios;
+    what the counts panel draws is `expected_counts`. Two sheets of the twelve a run writes; the
+    folder of the example gets nothing."""
+    from muoscene.viz import maps
+
+    before = sorted(p.name for p in PATH.parent.iterdir())
+    written = EXAMPLE.figures(result, tmp_path, names=["L12n"])
+    assert sorted(p.name for p in written) == ["canyon_demo_L12n_0.2GeV.png", "canyon_demo_L12n_1GeV.png"]
+    assert all(p.stat().st_size > 10_000 for p in written)
+    assert sorted(p.name for p in PATH.parent.iterdir()) == before
+    figure = maps.sheet_figure(result.maps[1.0], "L12n")
+    titles = [ax.get_title() for ax in figure.axes if ax.get_title()]
+    assert titles == [
+        "counts · none",
+        "opacity · none",
+        "transmission · none",
+        "ratio void / none",
+        "ratio decompaction / none",
+    ]
+    (mesh,) = [c for c in figure.axes[0].collections if c.get_gid() == maps.VALUES_GID]
+    np.testing.assert_array_equal(mesh.get_array(), expected_counts(result.maps[1.0], "L12n", "none"))

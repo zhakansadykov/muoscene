@@ -25,3 +25,7 @@ It also prints the cut-off and the vertical flux above 1 GeV of the table: 69.22
 ## Change it
 
 `DETECTORS` at the top of `run.py`: name, position in ENU (x east, y north, m), height above the ground, azimuth and tilt of the normal, exposure. A film must stay below 1 m above the ground, the top of the scene.
+
+## Figures
+
+The run also writes five figures into `figures/` under the folder it is run from (`FIGURES` at the top of `run.py`; `None` writes none): `open_sky_flat_1GeV.png`, `open_sky_tilted_1GeV.png` and the same above 0.2 GeV — the expected tracks of each film per bin — and `open_sky_flux.png`, the flux of the table above 1 and 0.2 GeV against the zenith angle. A map is drawn on the slopes of the film seen from the sky: for the flat film north is up and east to the right. Dotted lines mark the zenith angle every 15°, the thick line the horizon; the grey and hatched bins have no number, and the legend says why and how many: for the tilted film above 1 GeV, 476 not accepted, 34 below the cut-off of the reference and 270 below the table. Above 0.2 GeV every bin is hatched. The flux curve of 1 GeV ends at 74.53° of zenith angle, where the cut-off reaches 1 GeV. What the figures show and why — `docs/notes/figures.md`.

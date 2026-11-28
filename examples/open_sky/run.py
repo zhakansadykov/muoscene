@@ -11,11 +11,14 @@ shows what the sea-level reference flux cannot give at 1150 m: no number above 0
 open sky, and none below 15.7 degrees of elevation above 1 GeV. It is also the first check of
 an installation: it prints "checks passed: N of N" and exits with 0 when everything holds,
 with 1 otherwise. The first run builds a flux table and compiles the physics tables of Mulder,
-up to a minute; later runs take seconds.
+up to a minute; later runs take seconds. The figures — the map of the counts of each film
+above each threshold and the flux of the table against the zenith angle — go to the folder
+`figures` under the folder the example is run from (FIGURES below; None writes none).
 """
 
 import json
 import math
+import pathlib
 import sys
 import time
 
@@ -28,6 +31,8 @@ from muoscene.flux import EnergyResponse, MulderTable
 from muoscene.model import Hypothesis, Station, expected_map
 from muoscene.site import Site
 from muoscene.transport import BELOW_CUTOFF, DEFINED, LOW_ELEVATION, NOT_ACCEPTED, flux_domain
+from muoscene.viz import curves, style
+from muoscene.viz import maps as figure_maps
 
 # ------------------------------------------------------------------ parameters
 
@@ -47,6 +52,7 @@ FILM = {"area_cm2": 120.0, "n_films": 6, "tan_max": 1.0, "efficiency": 0.9}
 THRESHOLDS_GEV = (1.0, 0.2)
 SEED = 10
 CHECK_DIRECTIONS = 256
+FIGURES = "figures"  # folder for the figures, under the folder the example is run from; None for none
 
 # ------------------------------------------------------------------ nothing to edit below
 
@@ -186,6 +192,23 @@ def report(site, scene, poses, tables, maps) -> list[str]:
     return out
 
 
+def figures(result, folder=FIGURES) -> list[pathlib.Path]:
+    """Write the figures of a run into `folder`: the counts of each film above each threshold, and
+    the flux of the table against the zenith angle above the thresholds. Returns the paths."""
+    site, scene, poses, tables, maps = result
+    folder = pathlib.Path(folder)
+    out = []
+    for threshold, expected in maps.items():
+        for name in poses:
+            figure = figure_maps.map_figure(expected, name, "counts")
+            out.append(style.save(figure, folder / f"open_sky_{name}_{threshold:g}GeV.png"))
+    responses = [EnergyResponse.threshold(t) for t in THRESHOLDS_GEV]
+    for n, table in enumerate(tables.values()):
+        name = "open_sky_flux.png" if n == 0 else f"open_sky_flux_{n}.png"
+        out.append(style.save(curves.flux_figure(table, responses), folder / name))
+    return out
+
+
 def main() -> int:
     """Run, print the numbers and the checks; 0 when every check holds, 1 otherwise."""
     start = time.perf_counter()
@@ -198,6 +221,9 @@ def main() -> int:
     found = checks(*result)
     for holds, text in found:
         print(f"  [{'ok' if holds else 'FAILED'}] {text}")
+    if FIGURES is not None:
+        written = figures(result, FIGURES)
+        print(f"figures: {len(written)} files in {pathlib.Path(FIGURES).resolve()}")
     passed = sum(holds for holds, _ in found)
     print(f"checks passed: {passed} of {len(found)} ({time.perf_counter() - start:.1f} s)")
     return 0 if passed == len(found) else 1

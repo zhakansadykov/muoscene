@@ -24,3 +24,7 @@ Above 1 GeV the vertical flux is 64.43, 52.72 and 10.85 muons m⁻² s⁻¹ sr�
 ## Change it
 
 `SOIL`, `GROUND` and `DETECTORS` at the top of `run.py`: the soil, the size of the ground, and the name, position (ENU, m), depth and exposure of every film. A film stays inside the ground; at 45° from it a line runs as far sideways as the film is deep, so the ground must reach further than that.
+
+## Figures
+
+The run also writes six sheets into `figures/` under the folder it is run from (`FIGURES` at the top of `run.py`; `None` writes none), `slab_<depth>_<threshold>GeV.png`: for each film above 1 and 0.2 GeV the expected tracks per bin, the opacity and the transmission, on the slopes of the film seen from the sky (north up, east to the right). The opacity grows away from the centre as 1 / cos θ; the transmission is the share of the open-sky tracks that cross the slab. Above 0.2 GeV the transmission has no number: the open sky has none there. What the figures show and why — `docs/notes/figures.md`.

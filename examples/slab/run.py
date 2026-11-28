@@ -11,11 +11,14 @@ every run compares the fast path with Mulder on random lines of sight, and this 
 computes the flux along the vertical and along 45 degrees, the directions of the numbers frozen
 for Mulder in the tests of the program. It prints "checks passed: N of N" and exits with 0 when
 everything holds, with 1 otherwise. The first run builds three flux tables and compiles the
-physics tables of Mulder, up to a minute; later runs take seconds.
+physics tables of Mulder, up to a minute; later runs take seconds. The figures — counts,
+opacity and transmission of each film above each threshold — go to the folder `figures` under
+the folder the example is run from (FIGURES below; None writes none).
 """
 
 import json
 import math
+import pathlib
 import sys
 import time
 
@@ -28,6 +31,8 @@ from muoscene.flux import EnergyResponse, MulderTable
 from muoscene.model import Hypothesis, Station, expected_map
 from muoscene.site import Site
 from muoscene.transport import DEFINED, NOT_ACCEPTED
+from muoscene.viz import maps as figure_maps
+from muoscene.viz import style
 
 # ------------------------------------------------------------------ parameters
 
@@ -44,6 +49,7 @@ FILM = {"area_cm2": 120.0, "n_films": 6, "tan_max": 1.0, "efficiency": 0.9}
 THRESHOLDS_GEV = (1.0, 0.2)
 SEED = 10
 CHECK_DIRECTIONS = 256
+FIGURES = "figures"  # folder for the figures, under the folder the example is run from; None for none
 
 # ------------------------------------------------------------------ nothing to edit below
 
@@ -209,6 +215,19 @@ def report(result) -> list[str]:
     return out
 
 
+def figures(result, folder=FIGURES, names=None) -> list[pathlib.Path]:
+    """Write a sheet of maps for each film above each threshold into `folder`: counts, opacity and
+    transmission. `names` limits the films. Returns the paths."""
+    folder = pathlib.Path(folder)
+    names = [row[0] for row in DETECTORS] if names is None else list(names)
+    out = []
+    for threshold, expected in result["maps"].items():
+        for name in names:
+            figure = figure_maps.sheet_figure(expected, name)
+            out.append(style.save(figure, folder / f"slab_{name.replace(' ', '')}_{threshold:g}GeV.png"))
+    return out
+
+
 def main() -> int:
     """Run, print the numbers and the checks; 0 when every check holds, 1 otherwise."""
     start = time.perf_counter()
@@ -221,6 +240,9 @@ def main() -> int:
     found = checks(result)
     for holds, text in found:
         print(f"  [{'ok' if holds else 'FAILED'}] {text}")
+    if FIGURES is not None:
+        written = figures(result, FIGURES)
+        print(f"figures: {len(written)} files in {pathlib.Path(FIGURES).resolve()}")
     passed = sum(holds for holds, _ in found)
     print(f"checks passed: {passed} of {len(found)} ({time.perf_counter() - start:.1f} s)")
     return 0 if passed == len(found) else 1

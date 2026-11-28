@@ -9,11 +9,15 @@ its exposure, how much the void and the decompaction zone change that, and how a
 niche compares with one on pins in front of the wall. The sizes of the scene are invented and
 differ from any real site (README.md). Change the parameters below; nothing under the line
 "nothing to edit below" needs changing. The first run builds flux tables and compiles the
-physics tables of Mulder, up to a minute or two; later runs take seconds.
+physics tables of Mulder, up to a minute or two; later runs take seconds. The figures — for
+each detector above each threshold the counts, opacity and transmission without the anomalies
+and how much each anomaly changes the counts — go to the folder `figures` under the folder the
+example is run from (FIGURES below; None writes none).
 """
 
 import json
 import math
+import pathlib
 import sys
 import time
 from dataclasses import dataclass
@@ -27,6 +31,8 @@ from muoscene.flux import EnergyResponse, MulderTable
 from muoscene.model import Hypothesis, Station, expected_counts, expected_map
 from muoscene.site import Site
 from muoscene.transport import BELOW_CUTOFF, DEFINED, LOW_ELEVATION, NOT_ACCEPTED, TOO_OPAQUE
+from muoscene.viz import maps as figure_maps
+from muoscene.viz import style
 
 # ------------------------------------------------------------------ parameters
 
@@ -113,6 +119,7 @@ THRESHOLDS_GEV = (1.0, 0.2)  # kinetic energy a muon needs at the detector to le
 SEED = 10  # of the lines of sight on which every run checks the fast path against Mulder
 CHECK_DIRECTIONS = 256  # lines of sight of that check, per detector and threshold
 VISIBLE = 0.01  # a bin "sees" an anomaly when its counts change by more than this share
+FIGURES = "figures"  # folder for the figures, under the folder the example is run from; None for none
 
 # ------------------------------------------------------------------ nothing to edit below
 
@@ -432,6 +439,20 @@ def _pairs(rows) -> list:
     return out
 
 
+def figures(result: Result, folder=FIGURES, names=None) -> list[pathlib.Path]:
+    """Write a sheet of maps for every detector above every threshold into `folder`: counts,
+    opacity and transmission under the first hypothesis, the ratio of the counts under each other
+    hypothesis to it. `names` limits the detectors. Returns the paths."""
+    folder = pathlib.Path(folder)
+    names = [row.name for row in result.setup.rows] if names is None else list(names)
+    out = []
+    for threshold, expected in result.maps.items():
+        for name in names:
+            figure = figure_maps.sheet_figure(expected, name)
+            out.append(style.save(figure, folder / f"canyon_demo_{name}_{threshold:g}GeV.png"))
+    return out
+
+
 def main(detectors=None) -> int:
     """Print the input, run, print the summary. 0 on success, 2 for a mistake in the parameters,
     1 when the check against Mulder refuses the run."""
@@ -442,7 +463,11 @@ def main(detectors=None) -> int:
             "\nComputing; the first run builds flux tables and compiles Mulder's tables,"
             " up to a minute or two."
         )
-        print("\n".join(report(run(detectors))))
+        result = run(detectors)
+        print("\n".join(report(result)))
+        if FIGURES is not None:
+            written = figures(result, FIGURES)
+            print(f"Figures: {len(written)} files in {pathlib.Path(FIGURES).resolve()}")
     except ValueError as error:
         print(f"canyon_demo: {error}", file=sys.stderr)
         return 2
