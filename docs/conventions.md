@@ -1,6 +1,6 @@
 # Conventions
 
-Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`); revision 5 of 27 November 2026. Revision 2 (16 November): equivalent-opacity weights depend on energy, a soil is a mixture of skeleton and water. Revision 3 (16 November, after the review): decay along the air path, numbers quoted for two detector thresholds, the site-altitude reference from 0.1.1. Revision 4 (16 November, roadmap 0.1-05): a flux table holds the open-sky flux on a grid of energy and elevation and takes the opacity through the range of its reference material. Revision 5 (27 November, after roadmap tasks 0.1-07 to 0.1-10b): the axes of a scene, the tilt of a detector, the two sides of a film in a track density, the solid angle of the part of a bin in the acceptance, lines of sight through an edge of a mesh, the weights of the equivalent opacity between the threshold and the energy above the path, the air the solid bodies displace, the comparison with Mulder in every run, bins without a flux marked on request, the variables of the expected map. Every module follows these rules; a change here is a breaking change, is made on purpose in a commit of its own and is recorded in `CHANGELOG.md`.
+Status: approved on 15 November 2026, after the Mulder and Calzone spike (`docs/notes/mulder.md`); revision 6 of 28 November 2026. Revision 2 (16 November): equivalent-opacity weights depend on energy, a soil is a mixture of skeleton and water. Revision 3 (16 November, after the review): decay along the air path, numbers quoted for two detector thresholds, the site-altitude reference from 0.1.1. Revision 4 (16 November, roadmap 0.1-05): a flux table holds the open-sky flux on a grid of energy and elevation and takes the opacity through the range of its reference material. Revision 5 (27 November, after roadmap tasks 0.1-07 to 0.1-10b): the axes of a scene, the tilt of a detector, the two sides of a film in a track density, the solid angle of the part of a bin in the acceptance, lines of sight through an edge of a mesh, the weights of the equivalent opacity between the threshold and the energy above the path, the air the solid bodies displace, the comparison with Mulder in every run, bins without a flux marked on request, the variables of the expected map. Revision 6 (28 November, roadmap 0.1-15): what a `TrackSet` holds and its two frames, the scan-frame transform by axes and the sign of the slopes when the scan looks from the other side, a track on the edge of a bin or on the acceptance circle, tracks left out and counted. Every module follows these rules; a change here is a breaking change, is made on purpose in a commit of its own and is recorded in `CHANGELOG.md`.
 
 ## Backends and units
 
@@ -57,7 +57,7 @@ and roll rotates x_d and y_d about z_d by γ (counter-clockwise seen from the ti
 
 They are the slopes an emulsion scan reports (dx/dz, dy/dz) and the ratios of hit offsets to the base of a two-plane telescope. A slope pair describes a line, so u and −u give the same (tx, ty); the sky side is fixed by u_z > 0.
 
-**Scan frame.** Film axes used by the scanning laboratory are related to (x_d, y_d) by a fixed rotation or flip recorded in the exposure log; `muoscene.io.tracks` applies it when reading tracks.
+**Scan frame.** Film axes used by the scanning laboratory are related to (x_d, y_d) by a fixed rotation or flip recorded in the exposure log; `muoscene.io.tracks` applies it when reading tracks. The transform names, for each axis of the scan, the detector axis it runs along, with its sign, and the scan coordinates of the reference point. Where the z axis of the scan runs against the normal, the slopes change sign besides the turn of the axes.
 
 **Acceptance.** A detector accepts directions with u · z_d > 0 and sqrt(tx² + ty²) ≤ `tan_max`. The projected sensitive area is A (u · z_d). A detector point is never placed exactly on a boundary between bodies. A line of sight that passes within 1 nm of an edge or a vertex of a mesh is traced 3 nm aside (9 nm, or in another direction, where that lands near a second edge); one that runs at less than 0.57° to a face at such an edge, or along the edge, is refused (`docs/notes/geometry.md`).
 
@@ -70,6 +70,8 @@ Bins are rectangles in (tx, ty). The solid angle of the rectangle [0, a] × [0, 
     Ω = arctan(a b / sqrt(1 + a² + b²))
 
 and a general bin follows from four corner terms. Expected counts in a bin are integrated over sub-samples (n × n directions per bin, `supersample` in the configuration). The part of a bin within the acceptance circle has an exact solid angle as well, the contour integral of (1 − cos θ) dφ along its boundary; a sub-sample carries the exact solid angle of its rectangle within the circle and a direction inside it.
+
+A track on an edge between two bins belongs to the bin above the edge, one on the last edge to the last bin; a track on the acceptance circle is inside it. A track whose line looks at the sky only from behind the plane, or along the horizon, is not binned; every track left out is counted.
 
 ## Bodies, densities and anomalies
 
@@ -132,7 +134,7 @@ Attributes carry the package and backend versions, the configuration hash, creat
 
 ## Tracks
 
-`TrackSet` (`muoscene.detectors.tracks`) holds measured and synthetic tracks in one layout: slopes `tx`, `ty` and position in the detector frame, film index, quality, and the source (data or synthetic). It lives with the detectors, not with file readers, because synthetic data and comparison with data use it without touching files; readers in `muoscene.io.tracks` convert scanning output into it and apply the scan-frame transform. Model and data are binned in the same `DirectionGrid` with the same cuts.
+`TrackSet` (`muoscene.detectors.tracks`) holds the slopes `tx`, `ty` of tracks and, where the scan gives them, their positions; it states its frame — `detector`, or `scan` while the scan-frame transform is not known — its source (data or synthetic), the area scanned, the length of the exposure and the cuts already applied. Columns that only some scanning outputs have (segments, first film, quality) are added with the reader that brings them. Only a set in the detector frame is compared with a model. It lives with the detectors, not with file readers, because synthetic data and comparison with data use it without touching files; readers in `muoscene.io.tracks` convert scanning output into it and apply the scan-frame transform. Model and data are binned in the same `DirectionGrid` with the same cuts.
 
 ## Randomness
 
